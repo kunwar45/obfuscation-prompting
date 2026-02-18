@@ -43,6 +43,7 @@ class Pipeline:
                 prompt_id=prompt_id,
                 prompt=prompt["text"],
                 timestamp=datetime.now(timezone.utc).isoformat(),
+                metadata=dict(prompt.get("metadata", {})),
             )
             for step in self.steps:
                 result = step.run(result)
