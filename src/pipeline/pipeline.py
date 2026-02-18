@@ -10,13 +10,24 @@ from .step import PipelineStep
 PREVIEW_PROMPT = 220
 PREVIEW_ANSWER = 120
 PREVIEW_REASONING = 180
-PREVIEW_ANALYSIS = 200
+PREVIEW_MONITOR = 200
 
 
 def _preview(text: str, max_len: int) -> str:
     if len(text) <= max_len:
         return text
     return text[:max_len].rstrip() + "…"
+
+
+def _format_monitor(data: dict) -> str:
+    """Turn a monitor result dict into a human-readable string for display."""
+    lines = []
+    for key, value in data.items():
+        if isinstance(value, list):
+            lines.append(f"{key}: {', '.join(str(v) for v in value) or '(none)'}")
+        else:
+            lines.append(f"{key}: {value}")
+    return _preview("\n".join(lines), PREVIEW_MONITOR)
 
 
 class Pipeline:
@@ -45,8 +56,6 @@ class Pipeline:
                 f"Answer: {_preview(result.final_answer, PREVIEW_ANSWER)}\n\n"
                 f"Reasoning: {_preview(result.reasoning_trace, PREVIEW_REASONING)}"
             )
-            monitor_content = _preview(result.monitor_analysis, PREVIEW_ANALYSIS)
-
             tqdm.write("")
             tqdm.write(rule())
             tqdm.write(f"Question {i + 1} of {total}")
@@ -54,6 +63,7 @@ class Pipeline:
             tqdm.write(box("Prompt", prompt_preview))
             tqdm.write("")
             tqdm.write(box("Base model", base_content))
-            tqdm.write("")
-            tqdm.write(box("Monitor", monitor_content))
+            for monitor_name, monitor_data in result.monitor_results.items():
+                tqdm.write("")
+                tqdm.write(box(f"Monitor: {monitor_name}", _format_monitor(monitor_data)))
         return results

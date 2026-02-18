@@ -4,6 +4,8 @@ import sys
 from src.clients.together_client import TogetherClient
 from src.config import Config
 from src.loaders.json_loader import JSONFilePromptLoader
+from src.monitors.keyword_monitor import KeywordMonitor
+from src.monitors.llm_monitor import LLMMonitor
 from src.pipeline.pipeline import Pipeline
 from src.steps.base_model_step import BaseModelStep
 from src.steps.monitor_step import MonitorStep
@@ -48,9 +50,13 @@ def main():
     print(f"Loaded {len(prompts)} prompt(s) from {config.prompts_file}")
 
     client = TogetherClient(api_key=config.together_api_key)
+    monitors = [
+        LLMMonitor(client, config),
+        KeywordMonitor(keywords=["therefore", "multiply", "because", "however"]),
+    ]
     steps = [
         BaseModelStep(client, config),
-        MonitorStep(client, config),
+        MonitorStep(monitors),
     ]
     pipeline = Pipeline(steps)
 

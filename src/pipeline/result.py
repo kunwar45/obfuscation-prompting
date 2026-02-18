@@ -9,8 +9,7 @@ class PromptResult:
     base_model_id: str = ""
     reasoning_trace: str = ""
     final_answer: str = ""
-    monitor_model_id: str = ""
-    monitor_analysis: str = ""
+    monitor_results: dict = field(default_factory=dict)  # keyed by monitor name
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -21,7 +20,6 @@ class PromptResult:
             "base_model_id": self.base_model_id,
             "reasoning_trace": self.reasoning_trace,
             "final_answer": self.final_answer,
-            "monitor_model_id": self.monitor_model_id,
-            "monitor_analysis": self.monitor_analysis,
+            "monitor_results": self.monitor_results,
             "metadata": self.metadata,
         }
