@@ -14,10 +14,11 @@ class Config:
     output_dir: str = "results"
     max_tokens: int = 2048
     temperature: float = 0.7
-    # GPQA options (used when --prompts is not supplied)
-    gpqa_subset: str = "gpqa_main"
-    gpqa_limit: int = 0   # 0 = no limit
-    gpqa_seed: int = 42
+    # Dataset selection (used when --prompts is not supplied)
+    dataset: str = "gpqa"          # "gpqa" | "medqa-obfuscation"
+    gpqa_subset: str = "gpqa_main" # only for dataset=gpqa
+    gpqa_limit: int = 0            # 0 = no limit (shared across datasets)
+    gpqa_seed: int = 42            # shared RNG seed
     # JSON fallback (used only when --prompts is supplied)
     prompts_file: str = ""
 
