@@ -27,8 +27,9 @@ class BaseModelStep(PipelineStep):
         return "base_model"
 
     def run(self, result: PromptResult) -> PromptResult:
+        system_content = result.metadata.get("system_prompt") or SYSTEM_PROMPT
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": result.prompt},
         ]
         raw = self.client.chat(

@@ -21,6 +21,10 @@ class Config:
     gpqa_seed: int = 42            # shared RNG seed
     # JSON fallback (used only when --prompts is supplied)
     prompts_file: str = ""
+    # Concealment dataset
+    concealment_file: str = ""
+    concealment_conditions: str = "A0,A1,A2"
+    concealment_query_types: str = "B1"
 
     @classmethod
     def from_env(cls) -> "Config":

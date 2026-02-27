@@ -3,17 +3,19 @@ import sys
 
 from src.clients.together_client import TogetherClient
 from src.config import Config
+from src.loaders.concealment_loader import ConcealmentLoader
 from src.loaders.gpqa_loader import GPQALoader
 from src.loaders.json_loader import JSONFilePromptLoader
 from src.loaders.medqa_obfuscation_loader import MedQAObfuscationLoader
 from src.monitors.keyword_monitor import KeywordMonitor
 from src.monitors.llm_monitor import LLMMonitor
+from src.monitors.regex_monitor import RegexMonitor
 from src.pipeline.pipeline import Pipeline
 from src.steps.base_model_step import BaseModelStep
 from src.steps.monitor_step import MonitorStep
 from src.storage.storage import ResultStorage
 
-DATASETS = ["gpqa", "medqa-obfuscation"]
+DATASETS = ["gpqa", "medqa-obfuscation", "concealment"]
 
 
 def build_loader(config: Config):
@@ -28,6 +30,20 @@ def build_loader(config: Config):
     elif config.dataset == "medqa-obfuscation":
         loader = MedQAObfuscationLoader(limit=limit, seed=config.gpqa_seed)
         desc = "MedQA obfuscation task" + (f" (limit={limit})" if limit else "")
+    elif config.dataset == "concealment":
+        if not config.concealment_file:
+            print("Error: --concealment-file is required when using --dataset concealment")
+            sys.exit(1)
+        loader = ConcealmentLoader(
+            jsonl_path=config.concealment_file,
+            conditions=config.concealment_conditions,
+            query_types=config.concealment_query_types,
+        )
+        desc = (
+            f"Concealment dataset ({config.concealment_file})"
+            f" conditions={config.concealment_conditions}"
+            f" query_types={config.concealment_query_types}"
+        )
     else:
         raise ValueError(f"Unknown dataset: {config.dataset!r}. Choose from: {DATASETS}")
 
@@ -40,7 +56,7 @@ def parse_args(config: Config) -> Config:
                         help="Path to a JSON prompts file (overrides --dataset)")
     parser.add_argument("--dataset", dest="dataset", default=config.dataset,
                         choices=DATASETS,
-                        help="HuggingFace dataset to use (default: gpqa)")
+                        help="Dataset to use (default: gpqa)")
     parser.add_argument("--gpqa-subset", dest="gpqa_subset", default=config.gpqa_subset,
                         choices=["gpqa_main", "gpqa_diamond", "gpqa_extended"],
                         help="GPQA subset (only used with --dataset gpqa)")
@@ -56,6 +72,15 @@ def parse_args(config: Config) -> Config:
                         help="Max tokens per generation")
     parser.add_argument("--temperature", dest="temperature", type=float, default=config.temperature,
                         help="Sampling temperature")
+    parser.add_argument("--concealment-file", dest="concealment_file",
+                        default=config.concealment_file,
+                        help="Path to concealment JSONL dataset (required for --dataset concealment)")
+    parser.add_argument("--concealment-conditions", dest="concealment_conditions",
+                        default=config.concealment_conditions,
+                        help="Comma-separated conditions to expand, e.g. A0,A1,A2")
+    parser.add_argument("--concealment-query-types", dest="concealment_query_types",
+                        default=config.concealment_query_types,
+                        help="Comma-separated query types to expand, e.g. B1")
     args = parser.parse_args()
 
     config.prompts_file = args.prompts_file
@@ -67,6 +92,9 @@ def parse_args(config: Config) -> Config:
     config.output_dir = args.output_dir
     config.max_tokens = args.max_tokens
     config.temperature = args.temperature
+    config.concealment_file = args.concealment_file
+    config.concealment_conditions = args.concealment_conditions
+    config.concealment_query_types = args.concealment_query_types
     return config
 
 
@@ -89,6 +117,7 @@ def main():
         # Loaders may also inject per-prompt terms via metadata["keyword_hints"]
         # — KeywordMonitor merges both sources automatically.
         KeywordMonitor(),
+        RegexMonitor(),
     ]
     steps = [
         BaseModelStep(client, config),
