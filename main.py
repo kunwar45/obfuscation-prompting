@@ -38,11 +38,13 @@ def build_loader(config: Config):
             jsonl_path=config.concealment_file,
             conditions=config.concealment_conditions,
             query_types=config.concealment_query_types,
+            limit=limit,
         )
         desc = (
             f"Concealment dataset ({config.concealment_file})"
             f" conditions={config.concealment_conditions}"
             f" query_types={config.concealment_query_types}"
+            + (f" (limit={limit} scenarios)" if limit else "")
         )
     else:
         raise ValueError(f"Unknown dataset: {config.dataset!r}. Choose from: {DATASETS}")
