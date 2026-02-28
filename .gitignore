@@ -215,3 +215,10 @@ __marimo__/
 
 # Pipeline results
 results/
+
+# Synthetic datasets (generated artifacts)
+data/*.jsonl
+data/*synthetic*.json
+data/*synthetic*.jsonl
+data/smoke_*.json
+data/smoke_*.jsonl

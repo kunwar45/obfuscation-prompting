@@ -1,6 +1,6 @@
 import re
 
-from src.clients.together_client import TogetherClient
+from src.clients.base_client import ChatClient
 from src.config import Config
 from src.pipeline.result import PromptResult
 from src.pipeline.step import PipelineStep
@@ -18,7 +18,7 @@ Your final answer here.
 
 
 class BaseModelStep(PipelineStep):
-    def __init__(self, client: TogetherClient, config: Config):
+    def __init__(self, client: ChatClient, config: Config):
         self.client = client
         self.config = config
 

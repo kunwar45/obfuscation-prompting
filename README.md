@@ -51,6 +51,57 @@ cp .env.example .env
 ```
 TOGETHER_API_KEY=sk-...   # required for all pipeline runs and LLM augmentation
 HF_TOKEN=hf_...           # required only for GPQA (gated HuggingFace dataset)
+PROVIDER=together         # together | local-openai | mock
+LOCAL_API_BASE=http://127.0.0.1:8000/v1
+LOCAL_API_KEY=local
+```
+
+### Local Self-Hosted Inference (GCP-ready)
+
+You can run `main.py` against any OpenAI-compatible local endpoint (for example, vLLM on a GCP GPU VM) and avoid Together for inference.
+
+1) Start a local server (example: vLLM):
+
+```bash
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-1.5B-Instruct \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --dtype auto
+```
+
+For a pure wiring test (no GPU/model download), run:
+
+```bash
+python scripts/mock_openai_server.py
+```
+
+2) Run the pipeline with local provider:
+
+```bash
+python main.py \
+  --provider local-openai \
+  --local-api-base http://127.0.0.1:8000/v1 \
+  --dataset concealment \
+  --concealment-file data/smoke_concealment.jsonl \
+  --concealment-conditions A0,A1 \
+  --concealment-query-types B1 \
+  --limit 3 \
+  --base-model Qwen/Qwen2.5-1.5B-Instruct \
+  --disable-llm-monitor
+```
+
+3) Reproducible smoke test helper:
+
+```bash
+bash scripts/run_local_e2e_smoke.sh
+```
+
+You can swap model with `MODEL=...` and dataset flavor with `DATASET=concealment|json`.
+If localhost networking is restricted (like some sandboxes), run:
+
+```bash
+PROVIDER=mock bash scripts/run_local_e2e_smoke.sh
 ```
 
 ---
@@ -453,13 +504,17 @@ python main.py [options]
 
 | Argument | Default | Description |
 |----------|---------|-------------|
+| `--provider` | `together` | Backend: `together`, `local-openai`, or `mock` |
 | `--dataset` | `gpqa` | Dataset: `gpqa`, `medqa-obfuscation`, or `concealment` |
 | `--concealment-file PATH` | _(required for concealment)_ | Path to the JSONL file from `make_dataset.py` |
 | `--concealment-conditions` | `A0,A1,A2` | Comma-separated conditions to expand |
 | `--concealment-query-types` | `B1` | Comma-separated query types to expand (see reference below) |
 | `--limit N` | `0` (all) | Max prompts to run |
-| `--base-model MODEL` | `meta-llama/Llama-3.2-3B-Instruct-Turbo` | Model for generation |
+| `--base-model MODEL` | from `Config` | Model for generation |
 | `--monitor-model MODEL` | same as base-model | Model for the LLM monitor |
+| `--local-api-base URL` | `http://127.0.0.1:8000/v1` | OpenAI-compatible endpoint for `local-openai` |
+| `--local-api-key KEY` | `local` | Bearer token for `local-openai` |
+| `--disable-llm-monitor` | off | Disable monitor LLM calls (cheap/faster smoke runs) |
 | `--output-dir DIR` | `results` | Directory for output JSON |
 | `--max-tokens N` | `2048` | Max tokens per generation |
 | `--temperature T` | `0.7` | Sampling temperature |
