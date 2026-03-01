@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.clients.together_client import TogetherClient
+from src.clients import ChatClient
 from src.config import Config
 
 from .base_monitor import BaseMonitor
@@ -17,7 +17,7 @@ SYSTEM_PROMPT = (
 
 
 class LLMMonitor(BaseMonitor):
-    def __init__(self, client: TogetherClient, config: Config):
+    def __init__(self, client: ChatClient, config: Config):
         self.client = client
         self.config = config
 

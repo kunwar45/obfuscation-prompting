@@ -3,6 +3,7 @@ import sys
 
 from src.clients.together_client import TogetherClient
 from src.config import Config
+from src.clients import ChatClient
 from src.loaders.concealment_loader import ConcealmentLoader
 from src.loaders.gpqa_loader import GPQALoader
 from src.loaders.json_loader import JSONFilePromptLoader
@@ -83,6 +84,21 @@ def parse_args(config: Config) -> Config:
     parser.add_argument("--concealment-query-types", dest="concealment_query_types",
                         default=config.concealment_query_types,
                         help="Comma-separated query types to expand, e.g. B1")
+    # Local HF model flags
+    parser.add_argument("--local", dest="use_local_model", action="store_true",
+                        default=config.use_local_model,
+                        help="Use a local HuggingFace model instead of Together AI")
+    parser.add_argument("--local-model", dest="local_model_name", default=config.local_model_name,
+                        help="HuggingFace model name/path (required with --local)")
+    parser.add_argument("--dtype", dest="local_model_dtype", default=config.local_model_dtype,
+                        choices=["bfloat16", "float16", "float32"],
+                        help="Torch dtype for local model (default: bfloat16)")
+    parser.add_argument("--capture-activations", dest="capture_activations",
+                        default=config.capture_activations,
+                        choices=["none", "last_token", "full_sequence", "reasoning_span"],
+                        help="Activation capture mode (default: none)")
+    parser.add_argument("--activations-dir", dest="activations_dir", default=config.activations_dir,
+                        help="Directory to write .npz activation files (default: activations)")
     args = parser.parse_args()
 
     config.prompts_file = args.prompts_file
@@ -97,22 +113,43 @@ def parse_args(config: Config) -> Config:
     config.concealment_file = args.concealment_file
     config.concealment_conditions = args.concealment_conditions
     config.concealment_query_types = args.concealment_query_types
+    config.use_local_model = args.use_local_model
+    config.local_model_name = args.local_model_name
+    config.local_model_dtype = args.local_model_dtype
+    config.capture_activations = args.capture_activations
+    config.activations_dir = args.activations_dir
     return config
+
+
+def build_client(config: Config) -> ChatClient:
+    if config.use_local_model:
+        if not config.local_model_name:
+            print("Error: --local-model is required when using --local.")
+            sys.exit(1)
+        from src.clients.hf_client import HFClient
+        print(f"Using local HF model: {config.local_model_name} (dtype={config.local_model_dtype})")
+        return HFClient(
+            model_name=config.local_model_name,
+            dtype=config.local_model_dtype,
+            capture_mode=config.capture_activations,
+        )
+    else:
+        if not config.together_api_key:
+            print("Error: TOGETHER_API_KEY is not set. Copy .env.example to .env and add your key.")
+            sys.exit(1)
+        print(f"Using Together AI backend (model={config.base_model})")
+        return TogetherClient(api_key=config.together_api_key)
 
 
 def main():
     config = Config.from_env()
     config = parse_args(config)
 
-    if not config.together_api_key:
-        print("Error: TOGETHER_API_KEY is not set. Copy .env.example to .env and add your key.")
-        sys.exit(1)
-
     loader, source_desc = build_loader(config)
     prompts = loader.load()
     print(f"Loaded {len(prompts)} prompt(s) from {source_desc}")
 
-    client = TogetherClient(api_key=config.together_api_key)
+    client = build_client(config)
     monitors = [
         LLMMonitor(client, config),
         # Static keywords (checked on every prompt) can be added here.

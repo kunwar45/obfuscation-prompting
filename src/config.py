@@ -25,9 +25,18 @@ class Config:
     concealment_file: str = ""
     concealment_conditions: str = "A0,A1,A2"
     concealment_query_types: str = "B1"
+    # Local model
+    use_local_model: bool = False
+    local_model_name: str = ""
+    local_model_dtype: str = "bfloat16"  # "bfloat16" | "float16" | "float32"
+    # Activation capture
+    capture_activations: str = "none"    # "none" | "last_token" | "full_sequence" | "reasoning_span"
+    activations_dir: str = "activations"
 
     @classmethod
     def from_env(cls) -> "Config":
         return cls(
             together_api_key=os.getenv("TOGETHER_API_KEY", ""),
+            use_local_model=os.getenv("USE_LOCAL_MODEL", "").lower() in ("1", "true", "yes"),
+            local_model_name=os.getenv("LOCAL_MODEL_NAME", ""),
         )

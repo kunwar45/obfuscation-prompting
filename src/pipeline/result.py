@@ -11,6 +11,7 @@ class PromptResult:
     final_answer: str = ""
     monitor_results: dict = field(default_factory=dict)  # keyed by monitor name
     metadata: dict = field(default_factory=dict)
+    activation_path: str = ""  # path to .npz if activations were captured
 
     def to_dict(self) -> dict:
         return {
@@ -22,4 +23,5 @@ class PromptResult:
             "final_answer": self.final_answer,
             "monitor_results": self.monitor_results,
             "metadata": self.metadata,
+            "activation_path": self.activation_path,
         }

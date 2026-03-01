@@ -1,6 +1,7 @@
+import os
 import re
 
-from src.clients.together_client import TogetherClient
+from src.clients import ChatClient
 from src.config import Config
 from src.pipeline.result import PromptResult
 from src.pipeline.step import PipelineStep
@@ -18,7 +19,7 @@ Your final answer here.
 
 
 class BaseModelStep(PipelineStep):
-    def __init__(self, client: TogetherClient, config: Config):
+    def __init__(self, client: ChatClient, config: Config):
         self.client = client
         self.config = config
 
@@ -41,6 +42,15 @@ class BaseModelStep(PipelineStep):
         result.base_model_id = self.config.base_model
         result.reasoning_trace = self._extract_tag(raw, "reasoning")
         result.final_answer = self._extract_tag(raw, "answer")
+
+        if (
+            self.config.capture_activations != "none"
+            and hasattr(self.client, "save_activations")
+        ):
+            act_dir = os.path.join(self.config.activations_dir, self.config.base_model.replace("/", "_"))
+            path = self.client.save_activations(result.prompt_id, act_dir)
+            result.activation_path = path
+
         return result
 
     @staticmethod
