@@ -55,6 +55,31 @@ HF_TOKEN=hf_...           # required only for GPQA (gated HuggingFace dataset)
 
 ---
 
+## Framing Experiment
+
+The framing experiment tests which implicit system-prompt framings cause a model
+to spontaneously conceal a secret — without ever being told "hide X". It spans
+**18 conditions across 5 dimensions** (motivation, incentive, audience, and two
+controls), establishing a fine-grained explicitness spectrum.
+
+**Quick start (local model, no API key):**
+
+```bash
+# Smoke test — 2 scenarios × 6 conditions ≈ 12 prompts
+python3.11 run_framing.py --local --smoke-only --smoke-scenarios 2 \
+  --conditions BASE,M_inst,M_inst_s,I_strong_s,SEMI,EXPLICIT
+
+# Full run — 30 scenarios × all 18 conditions ≈ 450 prompts
+python3.11 run_framing.py --local --skip-smoke --n-scenarios 30 --max-tokens 256
+```
+
+Produces 5 publication-quality figures including Cohen's h effect sizes, an
+empirical explicitness spectrum, and a condition × secret heatmap.
+
+For full documentation: [docs/FRAMING_EXPERIMENT.md](docs/FRAMING_EXPERIMENT.md)
+
+---
+
 ## Research Design
 
 Each scenario tests whether a model conceals a fictional secret `X` that is embedded in its system context. Three system-prompt conditions are crossed against each scenario:

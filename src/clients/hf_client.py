@@ -63,14 +63,14 @@ class HFClient:
             # device_map="auto" handles multi-GPU and CPU offload on CUDA
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_name,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
                 device_map="auto",
             )
         else:
             # MPS and CPU: load on CPU first, then move (device_map="auto" doesn't support MPS)
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_name,
-                torch_dtype=torch_dtype,
+                dtype=torch_dtype,
             )
             self.model = self.model.to(self.device)
 
