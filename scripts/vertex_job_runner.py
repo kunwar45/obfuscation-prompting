@@ -48,6 +48,14 @@ def parse_args() -> argparse.Namespace:
         help="Optional image URI to record in metadata.",
     )
     parser.add_argument(
+        "--run-slug",
+        default=os.getenv("VERTEX_RUN_SLUG", ""),
+        help=(
+            "Optional explicit run slug relative to the experiment prefix, "
+            "for example <display-name>/<timestamp>_<id>."
+        ),
+    )
+    parser.add_argument(
         "--artifact-dir",
         action="append",
         default=[],
@@ -219,7 +227,9 @@ def main() -> int:
 
     started_at = utc_now()
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
-    run_slug = make_run_slug(args.display_name, args.experiment_name, timestamp)
+    run_slug = args.run_slug or make_run_slug(
+        args.display_name, args.experiment_name, timestamp
+    )
     metadata_path = Path(METADATA_DIR) / "metadata.json"
     metadata = build_metadata(args, args.command, started_at, run_slug)
     write_metadata(metadata_path, metadata)

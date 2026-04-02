@@ -39,16 +39,34 @@ gs://genai-1010101/obfuscation-prompting/<experiment>/<display-name>/<timestamp>
 
 ## Before Running an Experiment
 
-1. Make sure the Docker image you want to run has been built and pushed.
-2. Generate a fresh per-run YAML instead of reusing an old one.
-3. Make sure the generated YAML points at the correct image tag.
-4. Make sure the YAML uses the real bucket prefix:
+1. Run a local lightweight preflight of the exact experiment entrypoint before any real Vertex submission.
+2. Make sure the Docker image you want to run has been built and pushed.
+3. Generate a fresh per-run YAML instead of reusing an old one.
+4. Make sure the generated YAML points at the correct image tag.
+5. Make sure the YAML uses the real bucket prefix:
 
 ```text
 gs://genai-1010101/obfuscation-prompting
 ```
 
-5. Make sure `VERTEX_EXPERIMENT_NAME` and `VERTEX_DISPLAY_NAME` are set to something meaningful.
+6. Make sure `VERTEX_EXPERIMENT_NAME` and `VERTEX_DISPLAY_NAME` are set to something meaningful.
+
+Recommended local preflight for the concealment interpretability workflow:
+
+```bash
+python3 scripts/run_vertex_last_token_concealment_experiment.py \
+  --model gpt2 \
+  --dtype float32 \
+  --n-scenarios 2 \
+  --max-tokens 64 \
+  --top-k-dims 4 \
+  --smoke-mode
+```
+
+That local preflight is intended to validate the command path and output layout,
+not to reproduce the real concealment finding. Tiny models and tiny runs may not
+produce enough successful concealment examples for the evaluator, which is why
+`--smoke-mode` allows evaluator failure without blocking the preflight.
 
 Example:
 
@@ -83,13 +101,14 @@ Treat `vertex_jobs/*.yaml` as templates. Treat `vertex_jobs/runs/*.yaml` as run 
 The typical workflow for this repo is:
 
 1. The user tells the agent what experiment to run.
-2. The agent creates a per-run Vertex YAML, sets the command/image/config, and submits the job.
-3. The agent confirms that the Vertex job submission succeeded.
-4. The agent's job ends in this context.
-5. The user waits for the job to finish.
-6. After completion, the user downloads the artifacts from GCS and continues analysis locally.
+2. The agent runs a lightweight local preflight of the same experiment entrypoint.
+3. The agent creates a per-run Vertex YAML, sets the command/image/config, and submits the job.
+4. The agent confirms that the Vertex job submission succeeded.
+5. The agent's job ends in this context.
+6. The user waits for the job to finish.
+7. After completion, the user downloads the artifacts from GCS and continues analysis locally.
 
-In other words: define the experiment, submit it, confirm submission, then stop. Waiting and downloading happen after that.
+In other words: define the experiment, preflight it locally, submit it, confirm submission, then stop. Waiting and downloading happen after that.
 
 ## Submit an Experiment
 
@@ -171,6 +190,7 @@ If downloads fail:
 
 ## Recommended Agent Behavior
 
+- Always run a lightweight local preflight of the exact experiment command before a real Vertex submission.
 - Always verify the exact Docker image tag before submission.
 - Prefer using the helper scripts instead of hand-writing `gcloud` commands.
 - Treat GCS as the source of truth for Vertex-run artifacts.

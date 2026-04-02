@@ -43,10 +43,27 @@ gs://<bucket>/obfuscation-prompting/framing-experiment/framing-mini-smoke/<run>/
 
 ## Quick Start
 
-1. Generate a per-run YAML from a shared template.
-2. Build and push the Docker image you want to run.
-3. Submit the generated run config.
-4. After the job finishes, list and download the artifacts you want.
+1. Run a lightweight local preflight of the exact experiment entrypoint.
+2. Generate a per-run YAML from a shared template.
+3. Build and push the Docker image you want to run.
+4. Submit the generated run config.
+5. After the job finishes, list and download the artifacts you want.
+
+Example local preflight for the concealment interpretability workflow:
+
+```bash
+python3 scripts/run_vertex_last_token_concealment_experiment.py \
+  --model gpt2 \
+  --dtype float32 \
+  --n-scenarios 2 \
+  --max-tokens 64 \
+  --top-k-dims 4 \
+  --smoke-mode
+```
+
+This is a workflow sanity check, not a scientific reproduction. Small models and
+small runs may not generate enough successful concealment examples for the
+evaluator, so `--smoke-mode` permits evaluator failure during the local preflight.
 
 Generate a run-specific config:
 
@@ -101,12 +118,13 @@ scripts/download_vertex_results.sh \
 
 ## Suggested Workflow
 
-1. Generate a new per-run YAML under `vertex_jobs/runs/`.
-2. Build and push the image for that run.
-3. Submit that exact run config.
-4. Confirm the Vertex job was accepted successfully.
-5. Stop there unless the user explicitly asks for post-run work.
-6. After the run finishes, download artifacts with `scripts/download_vertex_results.sh`.
+1. Run a lightweight local preflight of the exact experiment command.
+2. Generate a new per-run YAML under `vertex_jobs/runs/`.
+3. Build and push the image for that run.
+4. Submit that exact run config.
+5. Confirm the Vertex job was accepted successfully.
+6. Stop there unless the user explicitly asks for post-run work.
+7. After the run finishes, download artifacts with `scripts/download_vertex_results.sh`.
 
 ## Notes
 
