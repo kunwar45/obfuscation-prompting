@@ -1,0 +1,50 @@
+scheduling:
+  strategy: FLEX_START
+  maxWaitDuration: 7200s
+
+workerPoolSpecs:
+  - machineSpec:
+      machineType: g2-standard-4
+      acceleratorType: NVIDIA_L4
+      acceleratorCount: 1
+    replicaCount: 1
+    diskSpec:
+      bootDiskType: pd-ssd
+      bootDiskSizeGb: 200
+    containerSpec:
+      imageUri: docker.io/iman1121/iman-kunwar-genai:latest
+      command:
+        - python
+        - scripts/vertex_job_runner.py
+      args:
+        - --
+        - python
+        - run_framing.py
+        - --skip-smoke
+        - --n-scenarios
+        - "30"
+        - --max-tokens
+        - "256"
+      env:
+        - name: VERTEX_RESULTS_GCS_URI
+          value: gs://YOUR_BUCKET/obfuscation-prompting
+        - name: VERTEX_EXPERIMENT_NAME
+          value: framing-experiment
+        - name: VERTEX_DISPLAY_NAME
+          value: framing-mini-smoke
+        - name: VERTEX_IMAGE_URI
+          value: docker.io/iman1121/iman-kunwar-genai:latest
+
+      # Research workflow:
+      # 1. Use a smaller/cheaper model for a smoke test first.
+      # 2. Increase the model quality, scenarios, or token budget for full runs.
+      #
+      # Example edits:
+      # args:
+      #   - run_framing.py
+      #   - --model
+      #   - meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
+      #   - --n-scenarios
+      #   - "100"
+      #   - --max-tokens
+      #   - "512"

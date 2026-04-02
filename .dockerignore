@@ -1,0 +1,20 @@
+.git
+.gitignore
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Generated macOS metadata
+._*
+.DS_Store
+
+# Large/generated local outputs
+data/
+results/
+activations/
+
