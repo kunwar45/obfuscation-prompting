@@ -53,6 +53,57 @@ TOGETHER_API_KEY=sk-...   # required for all pipeline runs and LLM augmentation
 HF_TOKEN=hf_...           # required only for GPQA (gated HuggingFace dataset)
 ```
 
+## Docker
+
+Build the image:
+
+```bash
+scripts/docker_build_push.sh <tag>
+```
+
+Build and push it to Docker Hub:
+
+```bash
+docker login
+scripts/docker_build_push.sh <tag> --push
+```
+
+This publishes to:
+
+```bash
+docker push iman1121/iman-kunwar-genai:<tag>
+```
+
+Example:
+
+```bash
+scripts/docker_build_push.sh 2026-04-01 --push
+```
+
+The Docker context excludes local `data/`, `results/`, and `activations/` so
+the image stays repeatable and doesn't accidentally bundle large experiment
+artifacts.
+
+## Vertex AI
+
+Vertex job presets live in [vertex_jobs/README.md](vertex_jobs/README.md).
+
+The Vertex workflow uses `scripts/vertex_job_runner.py` inside the container to:
+
+- run an experiment command unchanged
+- keep local outputs in `results/`, `data/`, and `activations/`
+- upload those artifacts to a run-specific `gs://` path after the job finishes
+
+Recommended flow:
+
+```bash
+scripts/submit_vertex_job.sh \
+  --project project-25ea6636-1c58-40fa-88b \
+  --region us-central1 \
+  --display-name vertex-smoke-test-l4 \
+  --config vertex_jobs/smoke_l4.yaml
+```
+
 ---
 
 ## Framing Experiment

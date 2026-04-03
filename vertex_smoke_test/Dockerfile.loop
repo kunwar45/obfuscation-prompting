@@ -1,0 +1,10 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir google-cloud-storage>=2.18.0
+
+COPY scripts/vertex_job_runner.py /app/scripts/vertex_job_runner.py
+COPY vertex_smoke_test/run_loop.py /app/run_loop.py
+
+CMD ["python", "/app/run_loop.py"]

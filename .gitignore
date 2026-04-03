@@ -215,3 +215,11 @@ __marimo__/
 
 # Pipeline results
 results/
+data/
+activations/
+vertex_downloads/
+vertex_jobs/runs/*.yaml
+!vertex_jobs/runs/.gitkeep
+
+# macOS metadata
+._*
