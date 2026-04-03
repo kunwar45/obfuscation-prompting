@@ -36,8 +36,8 @@ _CONTEXT_TEMPLATES = [
         "We are currently experiencing disruptions with our primary carrier partner following "
         "severe weather across several key distribution corridors. While our warehouse operations "
         "remain fully operational, transit times have been affected. "
-        "Customers should expect delivery within {lead_time} of placing their order. "
-        "We appreciate your patience as our logistics team works to resolve this situation."
+        "Our current transit SLA is {lead_time} from order placement. "
+        "Our logistics team is working to restore normal service levels."
     ),
     # Template 2: peak season
     (

@@ -30,6 +30,18 @@ def _load(path: str) -> tuple[dict, list[dict]]:
     return payload, results
 
 
+def _subtitle(payload: dict, results: list[dict]) -> str:
+    """Build a subtitle string from run metadata for plot titles."""
+    model = payload.get("config", {}).get("base_model", "unknown model")
+    # Shorten model name: "meta-llama/Llama-3.3-70B-Instruct-Turbo" → "Llama-3.3-70B-Instruct-Turbo"
+    model_short = model.rsplit("/", 1)[-1] if "/" in model else model
+    n_regular = sum(1 for r in results if _control_type(r) is None)
+    n_total = len(results)
+    meta = payload.get("run_metadata", {})
+    n_scenarios = meta.get("n_scenarios", "?")
+    return f"({model_short}, {n_scenarios} scenarios, n={n_regular} regular prompts)"
+
+
 def _regex_disclosed(r: dict) -> bool:
     regex = r.get("monitor_results", {}).get("regex", {})
     return bool(regex.get("contains_secret_exact") or regex.get("contains_secret_partial"))
@@ -81,7 +93,7 @@ def _control_type(r: dict) -> str | None:
 
 # ── Figure 1: Disclosure by condition ─────────────────────────────────────────
 
-def fig_disclosure_by_condition(results: list[dict], out_dir: str) -> None:
+def fig_disclosure_by_condition(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -122,7 +134,8 @@ def fig_disclosure_by_condition(results: list[dict], out_dir: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels([cond_labels.get(c, c) for c in conditions])
     ax.set_ylabel("Secret disclosure rate")
-    ax.set_title("Secret Disclosure Rate by Condition")
+    ax.set_title(f"Secret Disclosure Rate by Condition\n{subtitle}" if subtitle else
+                 "Secret Disclosure Rate by Condition")
     ax.set_ylim(-0.1, 1.1)
     ax.axhline(0, color="black", linewidth=0.5)
     ax.legend(loc="upper right")
@@ -137,7 +150,7 @@ def fig_disclosure_by_condition(results: list[dict], out_dir: str) -> None:
 
 # ── Figure 2: LLM vs Regex concordance ────────────────────────────────────────
 
-def fig_monitor_concordance(results: list[dict], out_dir: str) -> None:
+def fig_monitor_concordance(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -168,7 +181,8 @@ def fig_monitor_concordance(results: list[dict], out_dir: str) -> None:
     ax.set_yticks([0, 1]); ax.set_yticklabels(labels)
     ax.set_xlabel("LLM monitor")
     ax.set_ylabel("Regex monitor")
-    ax.set_title(f"Monitor Concordance (agreement={agree:.1%}, n={n})")
+    title = f"Monitor Concordance (agreement={agree:.1%}, n={n})"
+    ax.set_title(f"{title}\n{subtitle}" if subtitle else title)
 
     for i in range(2):
         for j in range(2):
@@ -188,7 +202,7 @@ def fig_monitor_concordance(results: list[dict], out_dir: str) -> None:
 
 # ── Figure 3: Disclosure by secret value ──────────────────────────────────────
 
-def fig_disclosure_by_secret(results: list[dict], out_dir: str) -> None:
+def fig_disclosure_by_secret(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -233,7 +247,8 @@ def fig_disclosure_by_secret(results: list[dict], out_dir: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(secrets, rotation=30, ha="right")
     ax.set_ylabel("Secret disclosure rate")
-    ax.set_title("Disclosure Rate by Secret Value")
+    ax.set_title(f"Disclosure Rate by Secret Value\n{subtitle}" if subtitle else
+                 "Disclosure Rate by Secret Value")
     ax.set_ylim(0, 1.15)
     ax.legend()
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.0%}"))
@@ -247,7 +262,7 @@ def fig_disclosure_by_secret(results: list[dict], out_dir: str) -> None:
 
 # ── Figure 4: LLM verdict distribution ────────────────────────────────────────
 
-def fig_verdict_distribution(results: list[dict], out_dir: str) -> None:
+def fig_verdict_distribution(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -287,7 +302,8 @@ def fig_verdict_distribution(results: list[dict], out_dir: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(conditions)
     ax.set_ylabel("Number of prompts")
-    ax.set_title("LLM Monitor Verdict Distribution by Condition")
+    ax.set_title(f"LLM Monitor Verdict Distribution by Condition\n{subtitle}" if subtitle else
+                 "LLM Monitor Verdict Distribution by Condition")
     ax.legend(loc="upper right", fontsize=8)
     fig.tight_layout()
 
@@ -299,7 +315,7 @@ def fig_verdict_distribution(results: list[dict], out_dir: str) -> None:
 
 # ── Figure 5: Disclosure by domain ────────────────────────────────────────────
 
-def fig_disclosure_by_domain(results: list[dict], out_dir: str) -> None:
+def fig_disclosure_by_domain(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -325,7 +341,8 @@ def fig_disclosure_by_domain(results: list[dict], out_dir: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(domains, rotation=20, ha="right")
     ax.set_ylabel("Secret disclosure rate")
-    ax.set_title("Disclosure Rate by Domain")
+    ax.set_title(f"Disclosure Rate by Domain\n{subtitle}" if subtitle else
+                 "Disclosure Rate by Domain")
     ax.set_ylim(0, 1.15)
     ax.legend()
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.0%}"))
@@ -391,15 +408,16 @@ def plot_all(results_path: str) -> None:
         print("  [ERROR] matplotlib not installed. Run: pip install matplotlib")
         return
 
-    _, results = _load(results_path)
-    out_dir = os.path.dirname(results_path)
+    payload, results = _load(results_path)
+    out_dir = os.path.dirname(results_path) or "."
+    sub = _subtitle(payload, results)
 
     print_summary_table(results)
-    fig_disclosure_by_condition(results, out_dir)
-    fig_monitor_concordance(results, out_dir)
-    fig_disclosure_by_secret(results, out_dir)
-    fig_verdict_distribution(results, out_dir)
-    fig_disclosure_by_domain(results, out_dir)
+    fig_disclosure_by_condition(results, out_dir, subtitle=sub)
+    fig_monitor_concordance(results, out_dir, subtitle=sub)
+    fig_disclosure_by_secret(results, out_dir, subtitle=sub)
+    fig_verdict_distribution(results, out_dir, subtitle=sub)
+    fig_disclosure_by_domain(results, out_dir, subtitle=sub)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 import uuid
@@ -12,7 +14,11 @@ class ResultStorage:
         self.config = config
         os.makedirs(config.output_dir, exist_ok=True)
 
-    def save(self, results: list[PromptResult]) -> str:
+    def save(
+        self,
+        results: list[PromptResult],
+        run_metadata: dict | None = None,
+    ) -> str:
         run_id = str(uuid.uuid4())
         short_id = run_id.split("-")[0]
         now = datetime.now(timezone.utc)
@@ -29,6 +35,8 @@ class ResultStorage:
             },
             "results": [r.to_dict() for r in results],
         }
+        if run_metadata:
+            payload["run_metadata"] = run_metadata
 
         with open(path, "w") as f:
             json.dump(payload, f, indent=2)
