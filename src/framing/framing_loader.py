@@ -180,9 +180,14 @@ class FramingLoader(BasePromptLoader):
 
     @staticmethod
     def _build_system_prompt(framing_key: str, role: str, context: str) -> str:
-        """Combine the rendered framing template with the scenario context."""
+        """Combine the rendered framing template with the scenario context.
+
+        Context comes first (background knowledge), framing last (role + policy).
+        Placing the instruction closest to generation gives it recency advantage,
+        making implicit framing conditions more influential.
+        """
         condition_string = render(framing_key, role)
-        return f"{condition_string}\n\n{context}"
+        return f"{context}\n\n{condition_string}"
 
     @staticmethod
     def _resolve_query(queries_map: dict, query_type: str) -> str | None:

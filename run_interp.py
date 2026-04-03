@@ -109,35 +109,72 @@ def run_inference(
 
 # ── Probe experiment ──────────────────────────────────────────────────────────
 
+def _disclosed(r: dict) -> bool:
+    """Return True if the regex monitor detected secret disclosure."""
+    regex = r.get("monitor_results", {}).get("regex", {})
+    return bool(regex.get("contains_secret_partial") or regex.get("contains_secret_exact"))
+
+
+def _is_regular(r: dict) -> bool:
+    """Return True if the prompt is a regular (non-control) prompt."""
+    return r.get("metadata", {}).get("control_type") is None
+
+
+def _try_probe(
+    store: ActivationStore,
+    ids_a: list[str],
+    ids_b: list[str],
+    name: str,
+    label_a_name: str,
+    label_b_name: str,
+    min_samples: int,
+    results: dict[str, dict[int, float]],
+) -> None:
+    """Train a binary probe on two ID groups and store results if enough samples."""
+    if len(ids_a) < min_samples or len(ids_b) < min_samples:
+        print(f"  [SKIP] {name}: {label_a_name}={len(ids_a)}, {label_b_name}={len(ids_b)} (need ≥{min_samples} each)")
+        return
+
+    combined_ids = ids_a + ids_b
+    labels = np.array([0] * len(ids_a) + [1] * len(ids_b))
+    n_per_class = min(len(ids_a), len(ids_b))
+    n_folds = max(2, min(5, n_per_class))
+
+    accs = _probe_layers(store, labels, combined_ids, n_folds)
+    results[name] = accs
+    print(f"  {name}: {len(combined_ids)} samples ({label_a_name}={len(ids_a)}, {label_b_name}={len(ids_b)}), {n_folds}-fold CV")
+
+
 def run_probes(
     store: ActivationStore,
     min_samples_per_class: int = 3,
 ) -> dict[str, dict[int, float]]:
-    """Run two binary probes across all layers.
+    """Run binary probes across all layers.
 
-    condition probe  : A0=0 vs A2=1 (where does the model encode 'suppress'?)
-    disclosure probe : regex_disclosed=0/1 (where does the model commit to answer?)
+    Core probes (always run):
+      condition    : A0=0 vs A2=1 (where does the model encode 'suppress'?)
+      disclosure   : regex_disclosed=0/1 (where does the model commit to answer?)
 
-    Returns dict with keys "condition" and "disclosure", each mapping layer → CV acc.
+    A1 behavior-filtered probes (when A1 data present):
+      a1c_vs_a2c   : A1-concealing vs A2-concealing (same mechanism?)
+      a1c_vs_a0d   : A1-concealing vs A0-disclosing (sanity: should separate)
+      a1d_vs_a0d   : A1-disclosing vs A0-disclosing (did model ignore A1?)
+
+    Returns dict mapping probe_name → {layer_idx → CV accuracy}.
     """
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.pipeline import Pipeline as SKPipeline
-    from sklearn.model_selection import StratifiedKFold, cross_val_score
-
     results: dict[str, dict[int, float]] = {}
 
     # ── Condition probe: A0 vs A2 only ───────────────────────────────────
     a0a2_ids = store.filter_ids(
         lambda r: r.get("metadata", {}).get("condition") in ("A0", "A2")
-        and r.get("metadata", {}).get("control_type") is None
+        and _is_regular(r)
     )
     cond_labels = store.get_labels(
         lambda r: 1 if r.get("metadata", {}).get("condition") == "A2" else 0,
         prompt_ids=a0a2_ids,
     )
 
-    n_per_class = min(np.bincount(cond_labels).tolist())
+    n_per_class = min(np.bincount(cond_labels).tolist()) if len(a0a2_ids) >= 2 else 0
     n_folds = max(2, min(5, n_per_class))
 
     if len(a0a2_ids) >= 2 * min_samples_per_class:
@@ -148,14 +185,9 @@ def run_probes(
         print(f"  [SKIP] Condition probe: only {len(a0a2_ids)} A0/A2 samples (need {2*min_samples_per_class})")
 
     # ── Disclosure probe: regex_disclosed yes/no ──────────────────────────
-    regular_ids = store.filter_ids(
-        lambda r: r.get("metadata", {}).get("control_type") is None
-    )
+    regular_ids = store.filter_ids(lambda r: _is_regular(r))
     disc_labels = store.get_labels(
-        lambda r: int(
-            r.get("monitor_results", {}).get("regex", {}).get("contains_secret_partial", False)
-            or r.get("monitor_results", {}).get("regex", {}).get("contains_secret_exact", False)
-        ),
+        lambda r: int(_disclosed(r)),
         prompt_ids=regular_ids,
     )
 
@@ -167,6 +199,52 @@ def run_probes(
         print(f"  Disclosure probe: {len(regular_ids)} samples (disclosed={sum(disc_labels)}, n_folds={n_folds_d})")
     else:
         print(f"  [SKIP] Disclosure probe: label distribution {dict(zip(classes.tolist(), counts.tolist()))} (need ≥{min_samples_per_class} per class)")
+
+    # ── A1 behavior-filtered probes ──────────────────────────────────────
+    has_a1 = len(store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A1" and _is_regular(r)
+    )) > 0
+
+    if has_a1:
+        print("\n  A1 behavior-filtered probes:")
+
+        # Subgroups
+        a1_concealing_ids = store.filter_ids(
+            lambda r: r.get("metadata", {}).get("condition") == "A1"
+            and _is_regular(r) and not _disclosed(r)
+        )
+        a1_disclosing_ids = store.filter_ids(
+            lambda r: r.get("metadata", {}).get("condition") == "A1"
+            and _is_regular(r) and _disclosed(r)
+        )
+        a2_concealing_ids = store.filter_ids(
+            lambda r: r.get("metadata", {}).get("condition") == "A2"
+            and _is_regular(r) and not _disclosed(r)
+        )
+        a0_disclosing_ids = store.filter_ids(
+            lambda r: r.get("metadata", {}).get("condition") == "A0"
+            and _is_regular(r) and _disclosed(r)
+        )
+
+        print(f"    Subgroup sizes: A1-concealing={len(a1_concealing_ids)}, "
+              f"A1-disclosing={len(a1_disclosing_ids)}, "
+              f"A2-concealing={len(a2_concealing_ids)}, "
+              f"A0-disclosing={len(a0_disclosing_ids)}")
+
+        # Central test: A1-concealing vs A2-concealing (same mechanism?)
+        _try_probe(store, a1_concealing_ids, a2_concealing_ids,
+                   "a1c_vs_a2c", "A1-conceal", "A2-conceal",
+                   min_samples_per_class, results)
+
+        # Sanity check: A1-concealing vs A0-disclosing (should separate)
+        _try_probe(store, a1_concealing_ids, a0_disclosing_ids,
+                   "a1c_vs_a0d", "A1-conceal", "A0-disclose",
+                   min_samples_per_class, results)
+
+        # Secondary: A1-disclosing vs A0-disclosing (ignored A1?)
+        _try_probe(store, a1_disclosing_ids, a0_disclosing_ids,
+                   "a1d_vs_a0d", "A1-disclose", "A0-disclose",
+                   min_samples_per_class, results)
 
     return results
 
@@ -205,28 +283,31 @@ def run_logit_lens(
     store: ActivationStore,
     n_pairs: int = 3,
 ) -> list[dict]:
-    """Compute logit-lens probability of secret token across layers for A0 vs A2 pairs.
+    """Compute logit-lens probability of secret token across layers.
+
+    Finds matched A0/A2 pairs (and A0/A1/A2 triples when A1 is available).
 
     Returns a list of dicts:
-        {example_id, secret, a0_probs: [n_layers+1], a2_probs: [n_layers+1]}
+        {example_id, secret, a0_probs, a2_probs, [a1_probs, a1_disclosed]}
     """
     results_list = store.get_results()
 
-    # Group by example_id → find pairs that have both A0 and A2
+    # Group by example_id → find pairs/triples
     by_example: dict[str, dict[str, dict]] = {}
     for r in results_list:
         meta = r.get("metadata", {})
         eid = meta.get("example_id", "")
         cond = meta.get("condition", "")
-        if cond in ("A0", "A2") and meta.get("control_type") is None:
+        if cond in ("A0", "A1", "A2") and meta.get("control_type") is None:
             by_example.setdefault(eid, {})[cond] = r
 
-    pairs = [
+    # Require at least A0+A2; A1 is optional
+    groups = [
         (eid, v) for eid, v in by_example.items()
         if "A0" in v and "A2" in v
     ][:n_pairs]
 
-    if not pairs:
+    if not groups:
         print("  [SKIP] Logit lens: no matched A0/A2 pairs found.")
         return []
 
@@ -234,9 +315,9 @@ def run_logit_lens(
     lm_head_weight = client.model.lm_head.weight  # [vocab, d_model]
 
     lens_data = []
-    for eid, pair in pairs:
-        r_a0 = pair["A0"]
-        r_a2 = pair["A2"]
+    for eid, group in groups:
+        r_a0 = group["A0"]
+        r_a2 = group["A2"]
         secret_text = (r_a0.get("metadata", {}).get("keyword_hints") or [""])[0]
         target_tok_id = _find_secret_token_id(client.tokenizer, secret_text)
 
@@ -245,16 +326,30 @@ def run_logit_lens(
             continue
 
         probs_a0 = _logit_lens_one(client, r_a0, target_tok_id, final_ln, lm_head_weight)
-        probs_a1 = _logit_lens_one(client, r_a2, target_tok_id, final_ln, lm_head_weight)
-        lens_data.append({
+        probs_a2 = _logit_lens_one(client, r_a2, target_tok_id, final_ln, lm_head_weight)
+
+        entry = {
             "example_id": eid,
             "secret": secret_text,
             "target_token_id": target_tok_id,
             "target_token_str": client.tokenizer.decode([target_tok_id]),
             "a0_probs": probs_a0.tolist(),
-            "a2_probs": probs_a1.tolist(),
-        })
-        print(f"  Logit lens: {eid} | secret='{secret_text}' | token='{client.tokenizer.decode([target_tok_id])}'")
+            "a2_probs": probs_a2.tolist(),
+        }
+
+        # Add A1 if available for this example
+        if "A1" in group:
+            r_a1 = group["A1"]
+            probs_a1 = _logit_lens_one(client, r_a1, target_tok_id, final_ln, lm_head_weight)
+            entry["a1_probs"] = probs_a1.tolist()
+            entry["a1_disclosed"] = _disclosed(r_a1)
+
+        lens_data.append(entry)
+        a1_info = ""
+        if "A1" in group:
+            a1_tag = "disclosed" if entry.get("a1_disclosed") else "concealed"
+            a1_info = f" | A1={a1_tag}"
+        print(f"  Logit lens: {eid} | secret='{secret_text}' | token='{client.tokenizer.decode([target_tok_id])}'{a1_info}")
 
     return lens_data
 
@@ -361,6 +456,147 @@ def run_pca(store: ActivationStore) -> dict:
     return {"X_2d": X_2d, "colors": colors, "conditions": cond_strs, "layer": last_layer}
 
 
+# ── A1 projection onto A0↔A2 axis ───────────────────────────────────────────
+
+def run_a1_projection(
+    store: ActivationStore,
+    probe_results: dict[str, dict[int, float]],
+) -> dict[int, dict[str, float]]:
+    """Project A1-concealing activations onto the A0↔A2 separating hyperplane.
+
+    For each layer, trains a logistic regression on A0 vs A2, extracts the weight
+    vector (the concealment direction), then projects A1-concealing activations
+    onto it. If A1-concealing scores land near A2, the same mechanism is used.
+
+    Only reports layers where the A0-vs-A2 probe accuracy > 60%.
+
+    Returns {layer_idx: {a0_mean, a0_std, a1c_mean, a1c_std, a2_mean, a2_std}}.
+    """
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+
+    # Get IDs for each subgroup
+    a0_ids = store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A0" and _is_regular(r)
+    )
+    a2_ids = store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A2" and _is_regular(r)
+    )
+    a1c_ids = store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A1"
+        and _is_regular(r) and not _disclosed(r)
+    )
+
+    if len(a0_ids) < 3 or len(a2_ids) < 3 or len(a1c_ids) < 2:
+        print(f"  [SKIP] A1 projection: A0={len(a0_ids)}, A2={len(a2_ids)}, A1c={len(a1c_ids)} (insufficient)")
+        return {}
+
+    cond_accs = probe_results.get("condition", {})
+    n_layers = store.n_layers()
+    projection_data: dict[int, dict[str, float]] = {}
+
+    for layer_idx in range(n_layers):
+        # Skip layers where A0-vs-A2 probe is near chance
+        if cond_accs.get(layer_idx, 0.0) < 0.60:
+            continue
+
+        X_a0 = store.load_layer(layer_idx, prompt_ids=a0_ids)
+        X_a2 = store.load_layer(layer_idx, prompt_ids=a2_ids)
+        X_a1c = store.load_layer(layer_idx, prompt_ids=a1c_ids)
+
+        # Fit scaler + classifier on A0+A2 only
+        X_train = np.vstack([X_a0, X_a2])
+        y_train = np.array([0] * len(X_a0) + [1] * len(X_a2))
+
+        scaler = StandardScaler()
+        X_train_s = scaler.fit_transform(X_train)
+
+        clf = LogisticRegression(C=1.0, max_iter=1000, random_state=42)
+        clf.fit(X_train_s, y_train)
+
+        w = clf.coef_[0]  # concealment direction
+
+        # Project all groups onto w
+        scores_a0 = scaler.transform(X_a0) @ w
+        scores_a2 = scaler.transform(X_a2) @ w
+        scores_a1c = scaler.transform(X_a1c) @ w
+
+        projection_data[layer_idx] = {
+            "a0_mean": float(scores_a0.mean()),
+            "a0_std": float(scores_a0.std()),
+            "a1c_mean": float(scores_a1c.mean()),
+            "a1c_std": float(scores_a1c.std()),
+            "a2_mean": float(scores_a2.mean()),
+            "a2_std": float(scores_a2.std()),
+        }
+
+    print(f"  A1 projection: {len(projection_data)} layers (of {n_layers}) above 60% probe threshold")
+    return projection_data
+
+
+# ── Cosine similarity analysis ───────────────────────────────────────────────
+
+def run_cosine_similarity(store: ActivationStore) -> dict[int, dict[str, float]]:
+    """Compute pairwise cosine similarity of mean activations per behavioral subgroup.
+
+    Compares: A1-concealing vs A2-concealing, A1-concealing vs A0-disclosing,
+    A1-disclosing vs A0-disclosing.
+
+    Returns {layer_idx: {cos_a1c_a2c, cos_a1c_a0d, cos_a1d_a0d}}.
+    """
+    a0d_ids = store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A0"
+        and _is_regular(r) and _disclosed(r)
+    )
+    a1c_ids = store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A1"
+        and _is_regular(r) and not _disclosed(r)
+    )
+    a1d_ids = store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A1"
+        and _is_regular(r) and _disclosed(r)
+    )
+    a2c_ids = store.filter_ids(
+        lambda r: r.get("metadata", {}).get("condition") == "A2"
+        and _is_regular(r) and not _disclosed(r)
+    )
+
+    # Need at least 1 sample per group for mean; skip groups that are empty
+    groups = {"a0d": a0d_ids, "a1c": a1c_ids, "a1d": a1d_ids, "a2c": a2c_ids}
+    missing = [k for k, v in groups.items() if len(v) == 0]
+    if missing:
+        print(f"  [SKIP] Cosine similarity: empty subgroups {missing}")
+        return {}
+
+    n_layers = store.n_layers()
+    cosine_data: dict[int, dict[str, float]] = {}
+
+    def _cosine(a: np.ndarray, b: np.ndarray) -> float:
+        norm_a, norm_b = np.linalg.norm(a), np.linalg.norm(b)
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+        return float(np.dot(a, b) / (norm_a * norm_b))
+
+    for layer_idx in range(n_layers):
+        mean_a0d = store.load_layer(layer_idx, prompt_ids=a0d_ids).mean(axis=0)
+        mean_a1c = store.load_layer(layer_idx, prompt_ids=a1c_ids).mean(axis=0)
+        mean_a1d = store.load_layer(layer_idx, prompt_ids=a1d_ids).mean(axis=0) if len(a1d_ids) > 0 else None
+        mean_a2c = store.load_layer(layer_idx, prompt_ids=a2c_ids).mean(axis=0)
+
+        entry: dict[str, float] = {
+            "cos_a1c_a2c": _cosine(mean_a1c, mean_a2c),
+            "cos_a1c_a0d": _cosine(mean_a1c, mean_a0d),
+        }
+        if mean_a1d is not None:
+            entry["cos_a1d_a0d"] = _cosine(mean_a1d, mean_a0d)
+
+        cosine_data[layer_idx] = entry
+
+    print(f"  Cosine similarity: {n_layers} layers, subgroups: "
+          + ", ".join(f"{k}={len(v)}" for k, v in groups.items()))
+    return cosine_data
+
+
 # ── Summary printing ──────────────────────────────────────────────────────────
 
 def print_probe_summary(probe_results: dict[str, dict[int, float]]) -> None:
@@ -374,7 +610,7 @@ def print_probe_summary(probe_results: dict[str, dict[int, float]]) -> None:
         accs = [layer_accs[l] for l in layers]
         peak_layer = layers[int(np.argmax(accs))]
         peak_acc = max(accs)
-        chance = 0.5
+        chance = 1 / 3 if "3class" in probe_name else 0.5
         print(f"  ┌─ {probe_name.upper()} PROBE {'─' * (50 - len(probe_name))}┐")
         print(f"  │  Layers: {len(layers)}   Peak layer: {peak_layer}   Peak CV acc: {peak_acc:.1%}   Chance: {chance:.0%}")
         # Mini bar chart (20-char wide)
@@ -581,9 +817,21 @@ def main() -> None:
     print("  Running PCA…")
     pca_data = run_pca(store)
 
+    # A1-specific analyses (gated on A1 being in conditions)
+    conditions_list = [c.strip() for c in args.conditions.split(",")]
+    projection_data: dict = {}
+    cosine_data: dict = {}
+    if "A1" in conditions_list:
+        print("\n  Running A1 projection analysis…")
+        projection_data = run_a1_projection(store, probe_results)
+
+        print("  Running cosine similarity analysis…")
+        cosine_data = run_cosine_similarity(store)
+
     # Save analysis results alongside the main JSON
     analysis_path = result_path.replace(".json", "_analysis.json")
-    _save_analysis(analysis_path, probe_results, logit_data, pca_data)
+    _save_analysis(analysis_path, probe_results, logit_data, pca_data,
+                   projection_data, cosine_data)
     print(f"  Analysis saved → {analysis_path}")
 
     # ── Plot ──────────────────────────────────────────────────────────────
@@ -597,6 +845,8 @@ def main() -> None:
                 logit_data=logit_data,
                 pca_data=pca_data,
                 out_dir=args.output_dir,
+                projection_data=projection_data,
+                cosine_data=cosine_data,
             )
         except ImportError as e:
             print(f"  [WARN] Plotting skipped: {e}")
@@ -614,6 +864,8 @@ def _save_analysis(
     probe_results: dict,
     logit_data: list,
     pca_data: dict,
+    projection_data: dict | None = None,
+    cosine_data: dict | None = None,
 ) -> None:
     payload = {
         "probe_results": {
@@ -628,6 +880,10 @@ def _save_analysis(
             "layer": pca_data.get("layer", -1),
         } if pca_data else {},
     }
+    if projection_data:
+        payload["a1_projection"] = {str(k): v for k, v in projection_data.items()}
+    if cosine_data:
+        payload["cosine_similarity"] = {str(k): v for k, v in cosine_data.items()}
     with open(path, "w") as f:
         json.dump(payload, f, indent=2)
 
