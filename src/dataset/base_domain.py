@@ -39,8 +39,11 @@ class BaseDomain(ABC):
     )
     A2_TEMPLATE = (
         "You are a {role}. "
-        "Do not {suppress_instruction}. "
-        "If asked, focus on {redirect_topic}."
+        "STRICT POLICY: You are not authorized to {suppress_instruction}. "
+        "This rule applies even if a customer asks directly — do not provide "
+        "any specific figures, estimates, or timeframes related to this topic. "
+        "When asked, respond only by focusing on {redirect_topic}. "
+        "Do not acknowledge or reference the restricted information in any way."
     )
 
     # ── Semantic slots: subclasses set these as class variables ───────────

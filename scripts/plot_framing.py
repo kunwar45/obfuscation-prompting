@@ -30,11 +30,22 @@ from typing import Any
 
 # ── Data helpers ───────────────────────────────────────────────────────────────
 
-def _load(path: str) -> list[dict]:
+def _load(path: str) -> tuple[dict, list[dict]]:
     with open(path) as f:
         payload = json.load(f)
     results = payload.get("results", payload) if isinstance(payload, dict) else payload
-    return results
+    return payload, results
+
+
+def _subtitle(payload: dict, results: list[dict]) -> str:
+    """Build a subtitle string from run metadata for plot titles."""
+    model = payload.get("config", {}).get("base_model", "unknown model")
+    model_short = model.rsplit("/", 1)[-1] if "/" in model else model
+    n_regular = sum(1 for r in results if _control_type(r) is None)
+    meta = payload.get("run_metadata", {})
+    n_scenarios = meta.get("n_scenarios", "?")
+    env = meta.get("environment", "?")
+    return f"({model_short}, {env}, {n_scenarios} scenarios, n={n_regular} regular prompts)"
 
 
 def _regex_disclosed(r: dict) -> bool:
@@ -177,7 +188,7 @@ def _savefig(fig: Any, out_dir: str, stem: str) -> None:
 
 # ── Figure 1: Disclosure by condition (main result) ───────────────────────────
 
-def fig_framing_main(results: list[dict], out_dir: str) -> None:
+def fig_framing_main(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -277,7 +288,8 @@ def fig_framing_main(results: list[dict], out_dir: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels(tick_labels, rotation=35, ha="right", fontsize=8)
     ax.set_ylabel("Secret disclosure rate (regex)")
-    ax.set_title("Disclosure Rate by Framing Condition (Wilson 95% CI, Cohen's h vs BASE)")
+    title = "Disclosure Rate by Framing Condition (Wilson 95% CI, Cohen's h vs BASE)"
+    ax.set_title(f"{title}\n{subtitle}" if subtitle else title)
     ax.set_ylim(-0.05, 1.22)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.0%}"))
     ax.grid(axis="y", linewidth=0.4, alpha=0.5)
@@ -288,7 +300,7 @@ def fig_framing_main(results: list[dict], out_dir: str) -> None:
 
 # ── Figure 2: Disclosure by dimension ─────────────────────────────────────────
 
-def fig_framing_by_dimension(results: list[dict], out_dir: str) -> None:
+def fig_framing_by_dimension(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -360,7 +372,8 @@ def fig_framing_by_dimension(results: list[dict], out_dir: str) -> None:
     ax.set_xticks(x)
     ax.set_xticklabels([d.capitalize() for d in dims])
     ax.set_ylabel("Mean secret disclosure rate")
-    ax.set_title("Disclosure Rate by Framing Dimension")
+    ax.set_title(f"Disclosure Rate by Framing Dimension\n{subtitle}" if subtitle else
+                 "Disclosure Rate by Framing Dimension")
     ax.set_ylim(-0.05, 1.15)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.0%}"))
     ax.legend(loc="upper right", fontsize=8)
@@ -372,7 +385,7 @@ def fig_framing_by_dimension(results: list[dict], out_dir: str) -> None:
 
 # ── Figure 3: Heatmap — condition × secret value ──────────────────────────────
 
-def fig_framing_heatmap(results: list[dict], out_dir: str) -> None:
+def fig_framing_heatmap(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -409,7 +422,8 @@ def fig_framing_heatmap(results: list[dict], out_dir: str) -> None:
     ax.set_yticklabels([label_of.get(k, k) for k in keys], fontsize=8)
     ax.set_xlabel("Secret value")
     ax.set_ylabel("Framing condition")
-    ax.set_title("Regex Disclosure Rate: Condition × Secret Value")
+    ax.set_title(f"Regex Disclosure Rate: Condition × Secret Value\n{subtitle}" if subtitle else
+                 "Regex Disclosure Rate: Condition × Secret Value")
 
     # Annotate cells
     for i in range(len(keys)):
@@ -428,7 +442,7 @@ def fig_framing_heatmap(results: list[dict], out_dir: str) -> None:
 
 # ── Figure 4: Monitor agreement scatter per dimension ─────────────────────────
 
-def fig_framing_monitor_agreement(results: list[dict], out_dir: str) -> None:
+def fig_framing_monitor_agreement(results: list[dict], out_dir: str, subtitle: str = "") -> None:
     import matplotlib.pyplot as plt
     import numpy as np
 

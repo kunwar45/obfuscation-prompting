@@ -161,9 +161,13 @@ def print_smoke_summary(results: list[PromptResult]) -> bool:
 
 # ── Results saving ─────────────────────────────────────────────────────────────
 
-def save_results(results: list[PromptResult], config: Config) -> str:
+def save_results(
+    results: list[PromptResult],
+    config: Config,
+    run_metadata: dict | None = None,
+) -> str:
     storage = ResultStorage(config)
-    return storage.save(results)
+    return storage.save(results, run_metadata=run_metadata)
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
@@ -259,6 +263,29 @@ def main() -> None:
         pipeline = build_pipeline(client, config)
         print(f"\n  Mode: TOGETHER  ({args.model})")
 
+    # ── Run metadata (self-documenting output) ──────────────────────────────
+    run_metadata: dict = {
+        "experiment": "framing",
+        "environment": "local" if args.local else "together",
+        "domain": "shipping",
+        "seed": args.seed,
+        "framing_keys": framing_keys,
+        "framing_conditions": {
+            k: {
+                "dimension": REGISTRY[k].dimension,
+                "label": REGISTRY[k].label,
+                "template": REGISTRY[k].template,
+            }
+            for k in framing_keys
+        },
+        "monitors": ["regex", "keyword"] if args.local else ["regex", "llm", "keyword"],
+        "cli_args": {k: v for k, v in vars(args).items() if k != "no_plot"},
+    }
+    if args.local:
+        run_metadata["local_model"] = args.local_model
+        run_metadata["dtype"] = args.dtype
+        run_metadata["max_tokens"] = args.max_tokens
+
     # ── Smoke test ─────────────────────────────────────────────────────────────
     if not args.skip_smoke:
         print(f"\n{'━' * 66}")
@@ -277,7 +304,8 @@ def main() -> None:
 
         ok = print_smoke_summary(smoke_results)
 
-        smoke_result_path = save_results(smoke_results, config)
+        smoke_meta = {**run_metadata, "run_type": "smoke", "n_scenarios": args.smoke_scenarios}
+        smoke_result_path = save_results(smoke_results, config, run_metadata=smoke_meta)
         print(f"\n  Smoke results → {smoke_result_path}")
 
         if not ok:
@@ -310,7 +338,8 @@ def main() -> None:
 
     results = run_batch(pipeline, full_path, framing_keys, domain.role)
 
-    result_path = save_results(results, config)
+    full_meta = {**run_metadata, "run_type": "full", "n_scenarios": args.n_scenarios}
+    result_path = save_results(results, config, run_metadata=full_meta)
     print(f"\n  Results saved → {result_path}")
 
     # ── Plot ───────────────────────────────────────────────────────────────────

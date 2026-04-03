@@ -175,11 +175,11 @@ class ConcealmentLoader(BasePromptLoader):
     def _build_system_prompt(condition: str, context: str) -> str:
         """Combine the A-condition string with the context paragraph.
 
-        The context is separated from the condition by a blank line so the model
-        receives a clear boundary between its role description and its background
-        knowledge for this interaction.
+        Context comes first (background knowledge), then the condition (role + policy).
+        This ordering ensures the policy/role instruction is closest to generation,
+        giving it recency advantage in the attention mechanism.
         """
-        return f"{condition}\n\n{context}"
+        return f"{context}\n\n{condition}"
 
     @staticmethod
     def _resolve_query(queries_map: dict, query_type: str) -> str | None:
