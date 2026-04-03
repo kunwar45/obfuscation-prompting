@@ -21,6 +21,9 @@ The wrapper:
 - uploads those folders to GCS at the end of the run
 - also uploads `.vertex_job/metadata.json`
 
+Those local output folders are ignored by git. If a run should be preserved in
+the repo, copy the selected artifacts into `saved_experiments/<run-name>/`.
+
 Typical GCS layout:
 
 ```text
@@ -74,7 +77,7 @@ Example:
 python scripts/create_vertex_run_config.py \
   --template experiment_l4.yaml \
   --run-name framing-30-scenarios \
-  --display-name framing-30-scenarios \
+  --owner iman \
   --experiment-name framing-experiment \
   --image-uri docker.io/iman1121/iman-kunwar-genai:latest
 ```
@@ -82,8 +85,12 @@ python scripts/create_vertex_run_config.py \
 This creates a file like:
 
 ```text
-vertex_jobs/runs/20260402_123456_framing-30-scenarios.yaml
+vertex_jobs/runs/20260402_123456_iman-framing-30-scenarios.yaml
 ```
+
+By default, the generator uses `--owner`, then `VERTEX_RUN_OWNER`, then the
+current username, and prefixes the display name with that owner slug. This
+helps avoid collisions when multiple people are working in the repo.
 
 ## Why Per-Run YAMLs
 
@@ -173,6 +180,30 @@ Look for these after a run:
 - `data/`: generated dataset JSONL files
 - `activations/`: activation captures, when enabled
 - `metadata.json`: wrapper metadata, command, timestamps, and upload summary
+
+## Keeping Selected Experiments
+
+Normal experiment outputs are intentionally ignored by git.
+
+To preserve a specific run, create a folder under:
+
+```text
+saved_experiments/<owner>-<run-name>/
+```
+
+and copy in only the artifacts you want to keep, such as:
+
+- the exact run YAML
+- a short `README.md`
+- selected `results/`
+- the matching `data/`
+- `activations/` only when they are important enough to version
+
+Recommended team naming convention:
+
+- run config filename: `<timestamp>_<owner>-<run-name>.yaml`
+- Vertex display name: `<owner>-<run-name>`
+- saved snapshot folder: `<owner>-<date>-<short-description>`
 
 ## Common Checks
 

@@ -221,5 +221,9 @@ vertex_downloads/
 vertex_jobs/runs/*.yaml
 !vertex_jobs/runs/.gitkeep
 
+# Saved experiment snapshots
+!saved_experiments/
+!saved_experiments/**
+
 # macOS metadata
 ._*

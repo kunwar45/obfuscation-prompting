@@ -26,6 +26,9 @@ Vertex runs use `scripts/vertex_job_runner.py` inside the container. The wrapper
 - uploads `results/`, `data/`, and `activations/` to GCS
 - uploads on both success and failure when possible
 
+Local experiment outputs are ignored by git. To preserve a run in the repo,
+copy the selected files into `saved_experiments/<run-name>/`.
+
 Recommended layout:
 
 ```text
@@ -71,7 +74,7 @@ Generate a run-specific config:
 python scripts/create_vertex_run_config.py \
   --template experiment_l4.yaml \
   --run-name framing-30-scenarios \
-  --display-name framing-30-scenarios \
+  --owner iman \
   --experiment-name framing-experiment \
   --image-uri docker.io/iman1121/iman-kunwar-genai:latest
 ```
@@ -79,8 +82,11 @@ python scripts/create_vertex_run_config.py \
 This prints a path like:
 
 ```text
-vertex_jobs/runs/20260402_123456_framing-30-scenarios.yaml
+vertex_jobs/runs/20260402_123456_iman-framing-30-scenarios.yaml
 ```
+
+If you do not pass `--owner`, the script uses `VERTEX_RUN_OWNER` or your
+current username and defaults the display name to `<owner>-<run-name>`.
 
 Smoke test:
 
@@ -132,3 +138,5 @@ scripts/download_vertex_results.sh \
 - `displayName`, `region`, and optionally `project` are passed by the submit script rather than stored in the YAML.
 - The YAML presets use env vars like `VERTEX_RESULTS_GCS_URI`, `VERTEX_EXPERIMENT_NAME`, and `VERTEX_IMAGE_URI` to drive artifact uploads.
 - Treat `smoke_l4.yaml` and `experiment_l4.yaml` as templates, not as files to edit in place for actual runs.
+- Use `saved_experiments/` for the small set of runs you want to version in git.
+- Prefer team-wide names like `<owner>-<run-name>` to avoid collisions.
