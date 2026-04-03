@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import getpass
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,9 +29,14 @@ def parse_args() -> argparse.Namespace:
         help="Short run identifier used in the output filename.",
     )
     parser.add_argument(
+        "--owner",
+        default="",
+        help="Short owner/team-member slug. Defaults to $VERTEX_RUN_OWNER or the current username.",
+    )
+    parser.add_argument(
         "--display-name",
         default="",
-        help="Optional VERTEX_DISPLAY_NAME override.",
+        help="Optional VERTEX_DISPLAY_NAME override. Defaults to <owner>-<run-name>.",
     )
     parser.add_argument(
         "--experiment-name",
@@ -67,6 +74,20 @@ def replace_env_value(text: str, env_name: str, new_value: str) -> str:
     return re.sub(pattern, replacement, text, count=1)
 
 
+def slugify(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-")
+
+
+def resolve_owner(explicit_owner: str) -> str:
+    raw_owner = explicit_owner or os.environ.get("VERTEX_RUN_OWNER") or getpass.getuser()
+    safe_owner = slugify(raw_owner)
+    if not safe_owner:
+        raise SystemExit(
+            "Could not determine a safe run owner. Pass --owner or set VERTEX_RUN_OWNER."
+        )
+    return safe_owner
+
+
 def main() -> int:
     args = parse_args()
 
@@ -77,14 +98,19 @@ def main() -> int:
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    safe_run_name = re.sub(r"[^A-Za-z0-9._-]+", "-", args.run_name).strip("-")
-    output_path = Path(args.output) if args.output else RUNS_DIR / f"{timestamp}_{safe_run_name}.yaml"
+    owner_slug = resolve_owner(args.owner)
+    safe_run_name = slugify(args.run_name)
+    if not safe_run_name:
+        raise SystemExit("Run name must contain at least one alphanumeric character.")
+
+    run_slug = f"{owner_slug}-{safe_run_name}"
+    output_path = Path(args.output) if args.output else RUNS_DIR / f"{timestamp}_{run_slug}.yaml"
 
     text = template_path.read_text(encoding="utf-8")
     text = replace_env_value(text, "VERTEX_RESULTS_GCS_URI", args.results_gcs_uri)
 
-    if args.display_name:
-        text = replace_env_value(text, "VERTEX_DISPLAY_NAME", args.display_name)
+    display_name = args.display_name or run_slug
+    text = replace_env_value(text, "VERTEX_DISPLAY_NAME", display_name)
     if args.experiment_name:
         text = replace_env_value(text, "VERTEX_EXPERIMENT_NAME", args.experiment_name)
     if args.image_uri:
@@ -97,7 +123,9 @@ def main() -> int:
 
     header = (
         f"# Generated from vertex_jobs/{args.template}\n"
+        f"# Owner: {owner_slug}\n"
         f"# Run name: {safe_run_name}\n"
+        f"# Display name: {display_name}\n"
         f"# Generated at: {timestamp} UTC\n\n"
     )
     output_path.write_text(header + text, encoding="utf-8")
