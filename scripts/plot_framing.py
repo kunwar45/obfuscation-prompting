@@ -699,15 +699,16 @@ def plot_all_framing(results_path: str) -> None:
         print("  [ERROR] matplotlib not installed. Run: pip install matplotlib")
         return
 
-    results = _load(results_path)
+    payload, results = _load(results_path)
     out_dir = os.path.dirname(results_path) or "."
+    subtitle = _subtitle(payload, results)
 
     print_summary_table(results)
     print_effect_sizes(results)
-    fig_framing_main(results, out_dir)
-    fig_framing_by_dimension(results, out_dir)
-    fig_framing_heatmap(results, out_dir)
-    fig_framing_monitor_agreement(results, out_dir)
+    fig_framing_main(results, out_dir, subtitle)
+    fig_framing_by_dimension(results, out_dir, subtitle)
+    fig_framing_heatmap(results, out_dir, subtitle)
+    fig_framing_monitor_agreement(results, out_dir, subtitle)
     fig_framing_spectrum(results, out_dir)
 
 
