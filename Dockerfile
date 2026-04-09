@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -9,7 +9,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip \
     && grep -v '^torch' requirements.txt > requirements-docker.txt \
-    && pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.1.0" \
     && pip install -r requirements-docker.txt
 
 COPY main.py .

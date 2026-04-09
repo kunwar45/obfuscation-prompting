@@ -77,21 +77,26 @@ def build_pipeline(client, config: Config) -> Pipeline:
 
 # ── Pipeline construction (local HuggingFace) ─────────────────────────────────
 
-def _dummy_config(model_name: str, max_tokens: int) -> Config:
-    """Minimal Config for local runs (no API key, no activation capture)."""
+def _dummy_config(model_name: str, max_tokens: int, capture_activations: str = "none") -> Config:
+    """Minimal Config for local runs."""
     cfg = Config()
     cfg.base_model = model_name
-    cfg.capture_activations = "none"
+    cfg.capture_activations = capture_activations
     cfg.max_tokens = max_tokens
     return cfg
 
 
-def build_pipeline_local(model_name: str, max_tokens: int, dtype: str) -> tuple[Config, Pipeline]:
+def build_pipeline_local(
+    model_name: str,
+    max_tokens: int,
+    dtype: str,
+    capture_activations: str = "none",
+) -> tuple[Config, Pipeline]:
     """Build a pipeline backed by a local HuggingFace model (no LLM monitor)."""
     from src.clients.hf_client import HFClient
-    client = HFClient(model_name=model_name, capture_mode="none", dtype=dtype)
+    client = HFClient(model_name=model_name, capture_mode=capture_activations, dtype=dtype)
     monitors = [RegexMonitor(), KeywordMonitor()]
-    config = _dummy_config(model_name, max_tokens)
+    config = _dummy_config(model_name, max_tokens, capture_activations)
     steps = [BaseModelStep(client, config), MonitorStep(monitors)]
     return config, Pipeline(steps)
 
@@ -216,6 +221,10 @@ def parse_args() -> argparse.Namespace:
                              help="Model dtype for local runs")
     local_group.add_argument("--max-tokens", type=int, default=256,
                              help="Max new tokens per generation (local mode; 256 is fast)")
+    local_group.add_argument("--capture-activations",
+                             default="none",
+                             choices=["none", "last_token", "full_sequence"],
+                             help="Activation capture mode for local runs (default: none)")
 
     return parser.parse_args()
 
@@ -242,7 +251,10 @@ def main() -> None:
     # ── Build pipeline ─────────────────────────────────────────────────────────
     if args.local:
         print(f"\n  Mode: LOCAL  ({args.local_model}  dtype={args.dtype})")
-        config, pipeline = build_pipeline_local(args.local_model, args.max_tokens, args.dtype)
+        config, pipeline = build_pipeline_local(
+            args.local_model, args.max_tokens, args.dtype,
+            capture_activations=args.capture_activations,
+        )
     else:
         if not os.environ.get("TOGETHER_API_KEY"):
             # Try loading from .env
@@ -285,6 +297,7 @@ def main() -> None:
         run_metadata["local_model"] = args.local_model
         run_metadata["dtype"] = args.dtype
         run_metadata["max_tokens"] = args.max_tokens
+        run_metadata["capture_activations"] = args.capture_activations
 
     # ── Smoke test ─────────────────────────────────────────────────────────────
     if not args.skip_smoke:

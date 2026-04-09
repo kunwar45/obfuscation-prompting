@@ -1,0 +1,115 @@
+{
+  "selected_layer": 16,
+  "selected_dims": [
+    1055,
+    154,
+    1305,
+    638,
+    456,
+    814,
+    1294,
+    1497
+  ],
+  "selected_effects": [
+    2.251168727874756,
+    2.222214698791504,
+    -2.2150723934173584,
+    -2.2094109058380127,
+    2.137986183166504,
+    -2.130161762237549,
+    -2.0915048122406006,
+    -2.0905275344848633
+  ],
+  "consistency": {
+    "success_pairwise_cosine": 0.9919727623462677,
+    "other_pairwise_cosine": 0.9883012232352583,
+    "layer_score": 2.168505907058716
+  },
+  "uniqueness": {
+    "success_n": 5,
+    "a2_fail_n": 8,
+    "a0_disclose_n": 9,
+    "success_score_mean": 0.854449450969696,
+    "a2_fail_score_mean": 0.9068164825439453,
+    "a0_disclose_score_mean": 0.9673902988433838,
+    "success_score_std": 0.028651472181081772,
+    "a2_fail_score_std": 0.03677009791135788,
+    "a0_disclose_score_std": 0.018635306507349014
+  },
+  "causal_tests": {
+    "n_tested": 5,
+    "patch_a0_with_a2_mean_delta": -1.1920928955078126e-08,
+    "reverse_patch_a2_with_a0_mean_delta": 1.3113021850585939e-07,
+    "full_patch_a0_with_a2_mean_delta": 7.867813110351562e-07,
+    "full_reverse_patch_a2_with_a0_mean_delta": -3.7789344787597655e-06,
+    "zero_ablate_a2_mean_delta": 5.960464477539063e-08,
+    "mean_ablate_a2_mean_delta": 9.5367431640625e-08,
+    "per_example": [
+      {
+        "example_id": "shipping_0000",
+        "secret_text": "2 days",
+        "token_id": 17,
+        "a0_base_prob": 2.980232238769531e-07,
+        "a0_patched_with_a2_prob": 2.980232238769531e-07,
+        "a0_full_patched_with_a2_prob": 6.556510925292969e-07,
+        "a2_base_prob": 5.781650543212891e-06,
+        "a2_reverse_patched_with_a0_prob": 5.841255187988281e-06,
+        "a2_full_reverse_patched_with_a0_prob": 1.9669532775878906e-06,
+        "a2_zero_ablated_prob": 5.900859832763672e-06,
+        "a2_mean_ablated_prob": 5.781650543212891e-06
+      },
+      {
+        "example_id": "shipping_0004",
+        "secret_text": "10 days",
+        "token_id": 16,
+        "a0_base_prob": 8.702278137207031e-06,
+        "a0_patched_with_a2_prob": 8.64267349243164e-06,
+        "a0_full_patched_with_a2_prob": 8.702278137207031e-06,
+        "a2_base_prob": 1.710653305053711e-05,
+        "a2_reverse_patched_with_a0_prob": 1.7523765563964844e-05,
+        "a2_full_reverse_patched_with_a0_prob": 1.704692840576172e-05,
+        "a2_zero_ablated_prob": 1.6748905181884766e-05,
+        "a2_mean_ablated_prob": 1.7464160919189453e-05
+      },
+      {
+        "example_id": "shipping_0011",
+        "secret_text": "28 days",
+        "token_id": 17,
+        "a0_base_prob": 1.430511474609375e-06,
+        "a0_patched_with_a2_prob": 1.430511474609375e-06,
+        "a0_full_patched_with_a2_prob": 3.2782554626464844e-06,
+        "a2_base_prob": 1.7821788787841797e-05,
+        "a2_reverse_patched_with_a0_prob": 1.7642974853515625e-05,
+        "a2_full_reverse_patched_with_a0_prob": 8.225440979003906e-06,
+        "a2_zero_ablated_prob": 1.7762184143066406e-05,
+        "a2_mean_ablated_prob": 1.7583370208740234e-05
+      },
+      {
+        "example_id": "shipping_0017",
+        "secret_text": "2 days",
+        "token_id": 17,
+        "a0_base_prob": 1.3709068298339844e-06,
+        "a0_patched_with_a2_prob": 1.3709068298339844e-06,
+        "a0_full_patched_with_a2_prob": 2.086162567138672e-06,
+        "a2_base_prob": 6.4373016357421875e-06,
+        "a2_reverse_patched_with_a0_prob": 6.556510925292969e-06,
+        "a2_full_reverse_patched_with_a0_prob": 3.0994415283203125e-06,
+        "a2_zero_ablated_prob": 6.735324859619141e-06,
+        "a2_mean_ablated_prob": 6.556510925292969e-06
+      },
+      {
+        "example_id": "shipping_0025",
+        "secret_text": "2 days",
+        "token_id": 17,
+        "a0_base_prob": 1.1920928955078125e-06,
+        "a0_patched_with_a2_prob": 1.1920928955078125e-06,
+        "a0_full_patched_with_a2_prob": 2.205371856689453e-06,
+        "a2_base_prob": 6.616115570068359e-06,
+        "a2_reverse_patched_with_a0_prob": 6.854534149169922e-06,
+        "a2_full_reverse_patched_with_a0_prob": 4.5299530029296875e-06,
+        "a2_zero_ablated_prob": 6.9141387939453125e-06,
+        "a2_mean_ablated_prob": 6.854534149169922e-06
+      }
+    ]
+  }
+}

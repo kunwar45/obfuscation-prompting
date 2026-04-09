@@ -112,7 +112,8 @@ def capture_last_token_vector(
         hs = out[0] if isinstance(out, tuple) else out
         captured["vec"] = hs[0, -1, :].detach().clone()
 
-    handle = model.model.layers[layer_idx].register_forward_hook(hook_fn)
+    # store layer_idx 0 is the embedding output; transformer blocks start at 1.
+    handle = model.model.layers[layer_idx - 1].register_forward_hook(hook_fn)
     try:
         with torch.no_grad():
             model(input_ids, return_dict=True)
@@ -146,7 +147,8 @@ def run_with_dim_patch(
             return (hs,) + out[1:]
         return hs
 
-    handle = model.model.layers[layer_idx].register_forward_hook(hook_fn)
+    # store layer_idx 0 is the embedding output; transformer blocks start at 1.
+    handle = model.model.layers[layer_idx - 1].register_forward_hook(hook_fn)
     try:
         with torch.no_grad():
             out = model(input_ids, return_dict=True)
@@ -173,7 +175,8 @@ def run_with_zero_ablation(
             return (hs,) + out[1:]
         return hs
 
-    handle = model.model.layers[layer_idx].register_forward_hook(hook_fn)
+    # store layer_idx 0 is the embedding output; transformer blocks start at 1.
+    handle = model.model.layers[layer_idx - 1].register_forward_hook(hook_fn)
     try:
         with torch.no_grad():
             out = model(input_ids, return_dict=True)
@@ -202,7 +205,7 @@ def identify_candidates(
     best: dict | None = None
     n_layers = store.n_layers()
 
-    for layer_idx in range(n_layers):
+    for layer_idx in range(1, n_layers):  # skip 0 (embedding — not a patchable transformer block)
         xs = store.load_layer(layer_idx, prompt_ids=success_a2_ids)
         xo = store.load_layer(layer_idx, prompt_ids=other_ids)
         ms = xs.mean(axis=0)
