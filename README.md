@@ -204,7 +204,6 @@ vertex_jobs/
   runs/                  # Generated per-run YAMLs (one per submission)
 
 docs/                    # Detailed experiment and architecture documentation
-local/                   # Local analysis writeups and notes (not committed)
 saved_experiments/       # Manually archived experiment snapshots
 data/                    # Generated datasets (git-ignored)
 results/                 # Run outputs: JSON + plots (git-ignored)
@@ -231,6 +230,3 @@ activations/             # Saved .npz activation files (git-ignored)
 - [`docs/PIPELINE_ARCHITECTURE.md`](docs/PIPELINE_ARCHITECTURE.md) — pipeline internals
 - [`docs/RUNNING.md`](docs/RUNNING.md) — detailed CLI reference for all entrypoints
 - [`docs/VERTEX_EXPERIMENT_RUNBOOK.md`](docs/VERTEX_EXPERIMENT_RUNBOOK.md) — Vertex AI workflow
-- [`local/interp-experiment-analysis.org`](local/interp-experiment-analysis.org) — A0/A2 interp findings
-- [`local/framing-interp-analysis.org`](local/framing-interp-analysis.org) — implicit vs explicit activation analysis
-- [`local/experiment-report.org`](local/experiment-report.org) — full research report (black-box + framing)
