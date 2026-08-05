@@ -227,3 +227,6 @@ vertex_jobs/runs/*.yaml
 
 # macOS metadata
 ._*
+
+# Private analysis notes (moved from local/) — kept untracked
+scratch/notes/

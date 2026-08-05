@@ -6,7 +6,7 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      Entry Points                                    │
 │                                                                     │
-│  run_blackbox.py   run_framing.py   run_interp.py   main.py         │
+│  scripts/run_blackbox.py   scripts/run_framing.py   scripts/run_interp.py   scripts/main.py         │
 └──────────┬─────────────┬───────────────┬──────────────┬────────────┘
            │             │               │              │
            ▼             ▼               ▼              ▼
@@ -176,7 +176,7 @@ class PromptResult:
 ## Adding a New Experiment
 
 1. **New loader** — create `src/loaders/my_loader.py` implementing `BasePromptLoader.load()`
-2. **New entry point** — mirror `run_framing.py` pattern:
+2. **New entry point** — mirror `scripts/run_framing.py` pattern:
    - `generate_dataset()` → JSONL
    - `build_pipeline()` or `build_pipeline_local()`
    - `run_batch(pipeline, dataset_path, ...)` → `list[PromptResult]`
@@ -191,7 +191,7 @@ No changes needed to `Pipeline`, `BaseModelStep`, `MonitorStep`, or `ResultStora
 
 | Experiment | Entry Point | Loader | Plots |
 |-----------|-------------|--------|-------|
-| Black-box (A0/A1/A2) | `run_blackbox.py` | `ConcealmentLoader` | `scripts/plot_results.py` |
-| Framing (18 conditions) | `run_framing.py` | `FramingLoader` | `scripts/plot_framing.py` |
-| Interpretability | `run_interp.py` | `ConcealmentLoader` | `scripts/plot_interp.py` |
-| Custom pipeline | `main.py` | various | — |
+| Black-box (A0/A1/A2) | `scripts/run_blackbox.py` | `ConcealmentLoader` | `scripts/plot_results.py` |
+| Framing (18 conditions) | `scripts/run_framing.py` | `FramingLoader` | `scripts/plot_framing.py` |
+| Interpretability | `scripts/run_interp.py` | `ConcealmentLoader` | `scripts/plot_interp.py` |
+| Custom pipeline | `scripts/main.py` | various | — |

@@ -19,7 +19,7 @@ workerPoolSpecs:
       args:
         - --
         - python
-        - run_framing.py
+        - scripts/run_framing.py
         - --skip-smoke
         - --n-scenarios
         - "30"
@@ -41,7 +41,7 @@ workerPoolSpecs:
       #
       # Example edits:
       # args:
-      #   - run_framing.py
+      #   - scripts/run_framing.py
       #   - --model
       #   - meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
       #   - --n-scenarios

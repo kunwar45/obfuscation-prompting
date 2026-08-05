@@ -21,7 +21,7 @@ Requires **Python 3.11** for torch-dependent code (local model runs). Cloud (Tog
 
 ## Experiments
 
-### 1. Black-box experiment (`run_blackbox.py`)
+### 1. Black-box experiment (`scripts/run_blackbox.py`)
 
 Establishes a causal baseline across three conditions:
 - **A0** — transparent ("be accurate and honest")
@@ -30,13 +30,13 @@ Establishes a causal baseline across three conditions:
 
 ```bash
 # Smoke test (3 scenarios)
-python run_blackbox.py --smoke-only
+python -m scripts.run_blackbox --smoke-only
 
 # Full run (50 scenarios, all three conditions)
-python run_blackbox.py --skip-smoke --n-scenarios 50
+python -m scripts.run_blackbox --skip-smoke --n-scenarios 50
 
 # Custom model
-python run_blackbox.py --skip-smoke --n-scenarios 50 \
+python -m scripts.run_blackbox --skip-smoke --n-scenarios 50 \
   --model meta-llama/Llama-3.3-70B-Instruct-Turbo
 ```
 
@@ -46,24 +46,24 @@ Requires `TOGETHER_API_KEY`. Saves results to `results/` and generates 5 plots.
 
 ---
 
-### 2. Framing experiment (`run_framing.py`)
+### 2. Framing experiment (`scripts/run_framing.py`)
 
 Maps the space between transparent and suppressed across **18 framing conditions** in 5 dimensions (motivation, incentive, audience, baseline, and control). No explicit suppression instruction in most conditions — tests whether implicit framing alone induces concealment.
 
 ```bash
 # Local model, smoke test
-python3.11 run_framing.py --local --smoke-only --smoke-scenarios 2 \
+python3.11 -m scripts.run_framing --local --smoke-only --smoke-scenarios 2 \
   --conditions BASE,M_inst_s,I_strong_s,SEMI,EXPLICIT
 
 # Local model, full run (all 18 conditions)
-python3.11 run_framing.py --local --skip-smoke --n-scenarios 30 \
+python3.11 -m scripts.run_framing --local --skip-smoke --n-scenarios 30 \
   --local-model Qwen/Qwen2.5-1.5B-Instruct --max-tokens 256
 
 # Cloud (Together AI), full run with LLM monitor
-python run_framing.py --skip-smoke --n-scenarios 30
+python -m scripts.run_framing --skip-smoke --n-scenarios 30
 
 # With activation capture (for interpretability analysis downstream)
-python3.11 run_framing.py --local --skip-smoke --n-scenarios 30 \
+python3.11 -m scripts.run_framing --local --skip-smoke --n-scenarios 30 \
   --conditions BASE,I_social,M_inst_s,I_strong_s,SEMI,EXPLICIT \
   --capture-activations last_token
 ```
@@ -74,19 +74,19 @@ Saves results to `results/` and generates 5 figures including an empirical expli
 
 ---
 
-### 3. Interpretability experiment (`run_interp.py`)
+### 3. Interpretability experiment (`scripts/run_interp.py`)
 
 Runs the pipeline with activation capture enabled, then probes the hidden states layer-by-layer to find where the model encodes (a) which condition it received, and (b) the disclosure decision. Also runs causal patching to test whether identified dimensions causally mediate concealment.
 
 ```bash
 # Recommended: Qwen 1.5B on local GPU
-python3.11 run_interp.py \
+python3.11 -m scripts.run_interp \
   --model Qwen/Qwen2.5-1.5B-Instruct \
   --dtype float16 \
   --n-scenarios 30
 
 # Smaller smoke run
-python3.11 run_interp.py \
+python3.11 -m scripts.run_interp \
   --model Qwen/Qwen2.5-1.5B-Instruct \
   --dtype float16 \
   --n-scenarios 10 \
@@ -172,31 +172,41 @@ docker buildx build --platform linux/amd64 \
 ## Project structure
 
 ```
-run_blackbox.py          # Black-box A0/A1/A2 experiment
-run_framing.py           # 18-condition implicit framing experiment
-run_interp.py            # Activation capture + probe + causal analysis
-run_patching.py          # Logit patching experiment
+src/                     # Reusable library code (import as src.*; scripts stay thin)
+  clients/               #   TogetherClient (API) + HFClient (local, activation capture)
+  dataset/               #   Synthetic dataset generator (ShippingDomain + others)
+  framing/               #   18 framing conditions + FramingLoader
+  loaders/               #   ConcealmentLoader, FramingLoader, BasePromptLoader
+  monitors/              #   RegexMonitor, KeywordMonitor, LLMMonitor
+  pipeline/              #   Pipeline, PipelineStep, PromptResult
+  interp/                #   ActivationStore, linear probes, patching, SAE utils
+  steps/                 #   BaseModelStep, MonitorStep
+  storage/               #   ResultStorage
 
-src/
-  clients/               # TogetherClient (API) + HFClient (local, activation capture)
-  dataset/               # Synthetic dataset generator (ShippingDomain + others)
-  framing/               # 18 framing conditions + FramingLoader
-  loaders/               # ConcealmentLoader, FramingLoader, BasePromptLoader
-  monitors/              # RegexMonitor, KeywordMonitor, LLMMonitor
-  pipeline/              # Pipeline, PipelineStep, PromptResult
-  interp/                # ActivationStore, linear probes, patching, SAE utils
-  steps/                 # BaseModelStep, MonitorStep
-  storage/               # ResultStorage
-
-scripts/
-  run_vertex_last_token_concealment_experiment.py  # Vertex entrypoint for interp
+scripts/                 # Pipeline drivers + plotting/eval CLIs (run from repo root)
+  run_blackbox.py        #   Black-box A0/A1/A2 experiment
+  run_framing.py         #   18-condition implicit framing experiment
+  run_interp.py          #   Activation capture + probe + causal analysis
+  run_patching.py        #   Logit patching experiment
+  main.py                #   Generic pipeline entrypoint (GPQA/MedQA/concealment)
+  make_dataset.py        #   Standalone dataset generation
+  plot_framing.py        #   Framing experiment figures
+  plot_results.py        #   Black-box experiment figures
+  plot_interp.py         #   Interp experiment figures
   eval_last_token_concealment.py                   # Causal evaluation script
-  plot_framing.py                                  # Framing experiment figures
-  plot_results.py                                  # Black-box experiment figures
+  eval_full_sequence_concealment.py                # Full-sequence evaluation
+  run_concealment_local.py                         # Reuse a dataset JSONL locally
+  filter_triplets.py                               # Filter result triplets
+  run_vertex_last_token_concealment_experiment.py  # Vertex entrypoint for interp
   create_vertex_run_config.py                      # Per-run YAML generator
   submit_vertex_job.sh                             # Vertex job submission
   download_vertex_results.sh                       # GCS artifact download
   vertex_job_runner.py                             # In-container wrapper + GCS upload
+  docker_build_push.sh                             # Build + push the experiment image
+
+scratch/                 # One-off / AI-generated code; nothing imports from it
+  vertex_smoke_test/     #   Minimal image + loop script for Vertex wiring checks
+  notes/                 #   Private analysis writeups (git-ignored)
 
 vertex_jobs/
   experiment_l4.yaml     # Template for L4 GPU experiment jobs
@@ -204,12 +214,16 @@ vertex_jobs/
   runs/                  # Generated per-run YAMLs (one per submission)
 
 docs/                    # Detailed experiment and architecture documentation
-local/                   # Local analysis writeups and notes (not committed)
 saved_experiments/       # Manually archived experiment snapshots
-data/                    # Generated datasets (git-ignored)
+data/                    # Generated datasets
 results/                 # Run outputs: JSON + plots (git-ignored)
-activations/             # Saved .npz activation files (git-ignored)
+activations/             # Saved .npz activation files
 ```
+
+**Run everything from the repository root.** The experiment drivers import
+`src.*`, so invoke them as modules — `python3.11 -m scripts.run_framing ...`,
+not `python3.11 scripts/run_framing.py` (inside the Docker image
+`PYTHONPATH=/app` is set, so both forms work there).
 
 ---
 
@@ -231,6 +245,6 @@ activations/             # Saved .npz activation files (git-ignored)
 - [`docs/PIPELINE_ARCHITECTURE.md`](docs/PIPELINE_ARCHITECTURE.md) — pipeline internals
 - [`docs/RUNNING.md`](docs/RUNNING.md) — detailed CLI reference for all entrypoints
 - [`docs/VERTEX_EXPERIMENT_RUNBOOK.md`](docs/VERTEX_EXPERIMENT_RUNBOOK.md) — Vertex AI workflow
-- [`local/interp-experiment-analysis.org`](local/interp-experiment-analysis.org) — A0/A2 interp findings
-- [`local/framing-interp-analysis.org`](local/framing-interp-analysis.org) — implicit vs explicit activation analysis
-- [`local/experiment-report.org`](local/experiment-report.org) — full research report (black-box + framing)
+- [`scratch/notes/interp-experiment-analysis.org`](scratch/notes/interp-experiment-analysis.org) — A0/A2 interp findings
+- [`scratch/notes/framing-interp-analysis.org`](scratch/notes/framing-interp-analysis.org) — implicit vs explicit activation analysis
+- [`scratch/notes/experiment-report.org`](scratch/notes/experiment-report.org) — full research report (black-box + framing)

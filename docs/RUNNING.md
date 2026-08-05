@@ -45,13 +45,13 @@ Tests three conditions: A0 (transparent), A1 (implicit incentive), A2 (explicit 
 
 ```bash
 # Quick smoke test
-python run_blackbox.py --smoke-only
+python -m scripts.run_blackbox --smoke-only
 
 # Full run (30 scenarios × 3 conditions ≈ 76 regular prompts)
-python run_blackbox.py --skip-smoke --n-scenarios 30
+python -m scripts.run_blackbox --skip-smoke --n-scenarios 30
 
 # Specific conditions only
-python run_blackbox.py --conditions A0,A2 --skip-smoke
+python -m scripts.run_blackbox --conditions A0,A2 --skip-smoke
 ```
 
 ### Output
@@ -86,21 +86,21 @@ All flags from black-box experiment, plus:
 
 ```bash
 # Smoke test — local model, 6 key conditions
-python3.11 run_framing.py --local --smoke-only --smoke-scenarios 2 \
+python3.11 -m scripts.run_framing --local --smoke-only --smoke-scenarios 2 \
   --conditions BASE,M_inst,M_inst_s,I_strong_s,SEMI,EXPLICIT
 
 # Full run — local model, all 18 conditions
-python3.11 run_framing.py --local --skip-smoke --n-scenarios 30 --max-tokens 256
+python3.11 -m scripts.run_framing --local --skip-smoke --n-scenarios 30 --max-tokens 256
 
 # Red-team iteration — test strengthened conditions
-python3.11 run_framing.py --local --smoke-only --smoke-scenarios 3 \
+python3.11 -m scripts.run_framing --local --smoke-only --smoke-scenarios 3 \
   --conditions BASE,M_inst,M_inst_s,I_strong_s,A_naive_s,SEMI,EXPLICIT
 
 # Cloud (Together AI) — full run
-python run_framing.py --skip-smoke --n-scenarios 30
+python -m scripts.run_framing --skip-smoke --n-scenarios 30
 
 # Specific conditions only
-python3.11 run_framing.py --local --skip-smoke \
+python3.11 -m scripts.run_framing --local --skip-smoke \
   --conditions BASE,M_inst,M_inst_s,I_strong,I_strong_s,SEMI,EXPLICIT
 ```
 
@@ -156,17 +156,17 @@ linear probes, logit lens, and PCA analysis.
 
 ```bash
 # Quick smoke test (gpt2 for speed)
-python3.11 run_interp.py --smoke-only
+python3.11 -m scripts.run_interp --smoke-only
 
 # Recommended full run (1.5B model, float16, 30 scenarios)
-python3.11 run_interp.py \
+python3.11 -m scripts.run_interp \
   --model Qwen/Qwen2.5-1.5B-Instruct \
   --dtype float16 \
   --n-scenarios 30 \
   --max-tokens 256
 
 # Skip smoke, specific dtype
-python3.11 run_interp.py \
+python3.11 -m scripts.run_interp \
   --skip-smoke \
   --model Qwen/Qwen2.5-1.5B-Instruct \
   --dtype float16 \

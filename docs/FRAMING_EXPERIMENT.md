@@ -114,19 +114,19 @@ unavailable in local mode (`--local`).
 
 ```bash
 # Smoke test — 2 scenarios × 6 conditions ≈ 12 prompts
-python3.11 run_framing.py --local --smoke-only --smoke-scenarios 2 \
+python3.11 -m scripts.run_framing --local --smoke-only --smoke-scenarios 2 \
   --conditions BASE,M_inst,M_inst_s,I_strong_s,SEMI,EXPLICIT
 
 # Full run — 30 scenarios × all 18 conditions
-python3.11 run_framing.py --local --skip-smoke --n-scenarios 30 --max-tokens 256
+python3.11 -m scripts.run_framing --local --skip-smoke --n-scenarios 30 --max-tokens 256
 ```
 
 ### Cloud (Together AI)
 
 ```bash
 export TOGETHER_API_KEY=sk-...
-python run_framing.py --smoke-only
-python run_framing.py --skip-smoke --n-scenarios 30
+python -m scripts.run_framing --smoke-only
+python -m scripts.run_framing --skip-smoke --n-scenarios 30
 ```
 
 ---
@@ -209,7 +209,7 @@ All outputs are saved alongside the results JSON in `results/`:
 
 ## Relationship to Black-Box Experiment
 
-The black-box experiment (`run_blackbox.py`) uses three conditions (A0/A1/A2)
+The black-box experiment (`scripts/run_blackbox.py`) uses three conditions (A0/A1/A2)
 with a separate concealment dataset loader (`ConcealmentLoader`).
 
 The framing experiment is a superset: it tests the full spectrum of implicit

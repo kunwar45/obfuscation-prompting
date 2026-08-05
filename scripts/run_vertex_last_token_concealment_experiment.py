@@ -115,7 +115,8 @@ def main() -> int:
     run_command(
         [
             sys.executable,
-            "run_interp.py",
+            "-m",
+            "scripts.run_interp",
             "--skip-smoke",
             "--n-scenarios",
             str(args.n_scenarios),
