@@ -31,6 +31,11 @@ from typing import Any
 # ── Data helpers ───────────────────────────────────────────────────────────────
 
 def _load(path: str) -> tuple[dict, list[dict]]:
+    try:  # HF dataset repo is canonical: fetch if not present locally
+        from src.storage.hf_artifacts import resolve_artifact
+        path = str(resolve_artifact(path))
+    except ImportError:  # direct invocation without repo root on sys.path
+        pass
     with open(path) as f:
         payload = json.load(f)
     results = payload.get("results", payload) if isinstance(payload, dict) else payload

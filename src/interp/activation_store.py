@@ -8,6 +8,8 @@ from typing import Callable
 
 import numpy as np
 
+from src.storage.hf_artifacts import repo_relative, resolve_artifact
+
 
 class ActivationStore:
     """Index activations saved by HFClient.save_activations().
@@ -24,7 +26,9 @@ class ActivationStore:
     def __init__(self, activations_dir: str, run_results_path: str):
         self.activations_dir = activations_dir
 
-        with open(run_results_path) as f:
+        # HF dataset repo is the canonical store: fetch the results JSON
+        # from there when it is not present locally.
+        with open(resolve_artifact(run_results_path)) as f:
             raw = json.load(f)
 
         # ResultStorage wraps results: {"run_id": ..., "results": [...]}
@@ -35,12 +39,13 @@ class ActivationStore:
             self._results = raw
             self.run_metadata = {}
 
-        # Index: prompt_id -> .npz path
+        # Index: prompt_id -> .npz path. Paths under an artifact folder are
+        # kept even when absent locally — load() fetches them from the HF repo.
         self._index: dict[str, str] = {}
         for result in self._results:
             pid = result.get("prompt_id", "")
             path = result.get("activation_path", "")
-            if path and os.path.exists(path):
+            if path and (os.path.exists(path) or repo_relative(path) is not None):
                 self._index[pid] = path
 
         self._prompt_ids = [r["prompt_id"] for r in self._results if r["prompt_id"] in self._index]
@@ -52,6 +57,9 @@ class ActivationStore:
     def load(self, prompt_id: str) -> dict[str, np.ndarray]:
         """Load all arrays for a single prompt. Keys: layer_0…layer_N, token_ids."""
         path = self._index[prompt_id]
+        if not os.path.exists(path):
+            path = str(resolve_artifact(path))
+            self._index[prompt_id] = path
         with np.load(path) as f:
             return dict(f)
 

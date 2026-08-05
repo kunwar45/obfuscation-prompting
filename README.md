@@ -227,6 +227,32 @@ not `python3.11 scripts/run_framing.py` (inside the Docker image
 
 ---
 
+## Data & artifacts on the Hub (canonical store)
+
+The **canonical copy of all experiment artifacts** is the public HuggingFace
+dataset repo
+**[kunwar45/obfuscation-prompting](https://huggingface.co/datasets/kunwar45/obfuscation-prompting)** —
+local `data/`, `results/`, `activations/`, `saved_experiments/`, and
+`vertex_downloads/` folders are working copies only. Folder names match this
+repo exactly, so `activation_path` fields in results JSONs are the same
+strings locally and on the Hub.
+
+Readers fall back to the Hub automatically: `ActivationStore` and the plot
+scripts fetch any results JSON or `.npz` that is missing locally
+(`src/storage/hf_artifacts.py` is the resolver). To sync folders explicitly:
+
+```bash
+python -m scripts.hf_sync pull                      # fetch everything
+python -m scripts.hf_sync pull activations results  # fetch specific folders
+python -m scripts.hf_sync push results activations  # publish new runs (needs `hf auth login`)
+```
+
+There are no fine-tuned model weights in this project (experiments use
+off-the-shelf Qwen/Llama; probe results live in the `*_analysis.json` files),
+so no model repos are needed.
+
+---
+
 ## Results summary
 
 | Experiment | Model | Key result |

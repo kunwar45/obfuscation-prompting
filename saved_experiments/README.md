@@ -2,6 +2,13 @@
 
 Use this folder for experiment snapshots you want to keep in git.
 
+> **Note:** archived snapshots (and all other run artifacts) now live in the
+> public HF dataset repo
+> [kunwar45/obfuscation-prompting](https://huggingface.co/datasets/kunwar45/obfuscation-prompting)
+> under `saved_experiments/` — local copies were removed 2026-08-05. Push new
+> snapshots there with
+> `hf upload kunwar45/obfuscation-prompting saved_experiments saved_experiments --repo-type dataset`.
+
 Everything in the repo's normal output locations stays ignored by default:
 
 - `results/`

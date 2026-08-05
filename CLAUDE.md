@@ -52,10 +52,19 @@ vertex_jobs/          Vertex AI job YAML templates + runs/ (generated per-run YA
 docs/                 experiment/architecture/CLI reference docs + VERTEX_EXPERIMENT_RUNBOOK.md
 tests/                fast unit tests. Run: python3.11 -m pytest -q
 saved_experiments/    manually archived experiment snapshots (frozen; do not edit)
-data/                 generated datasets (JSONL, timestamped)
-results/              run outputs: JSON + plots (gitignored)
-activations/          saved .npz activation files
+data/                 generated datasets (JSONL, timestamped)         } working copies —
+results/              run outputs: JSON + plots (gitignored)          } canonical store is
+activations/          saved .npz activation files                     } the HF dataset repo
 ```
+
+**Artifacts live on the Hub, not in git.** The canonical store for `data/`,
+`results/`, `activations/`, `saved_experiments/`, `vertex_downloads/` is the
+public HF dataset repo **`kunwar45/obfuscation-prompting`** (same folder names,
+so `activation_path` strings match). `src/storage/hf_artifacts.py` is the
+resolver — `ActivationStore` and the plot scripts fetch missing files from the
+Hub automatically. Sync explicitly with `python -m scripts.hf_sync pull|push
+<folder ...>`; **push new results/activations after every non-smoke run**.
+Never upload anything containing values from `.env` — the repo is public.
 
 **Respect the structure when adding code:**
 
